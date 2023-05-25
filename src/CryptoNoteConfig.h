@@ -130,8 +130,8 @@ const char     CRYPTONOTE_BLOCKCHAIN_INDICES_FILENAME[]      = "blockchainindice
 const char     MINER_CONFIG_FILE_NAME[]                      = "miner_conf.json";
 } // parameters
 
-const char     CRYPTONOTE_NAME[]                             = "karbowanec";
-const char     CRYPTONOTE_TICKER[]                           = "KRB";
+const char     CRYPTONOTE_NAME[]                             = "k‘“;
+const char     CRYPTONOTE_TICKER[]                           = "Ktest";
 const char     GENESIS_COINBASE_TX_HEX[]                     = 
 "01"                                                                // tx version
 "0a"                                                                // unlock time
@@ -210,16 +210,7 @@ const uint32_t P2P_IDLE_CONNECTION_KILL_INTERVAL             = (5 * 60);      //
 const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "8f80f9a5a434a9f1510d13336228debfee9c918ce505efe225d8c94d045fa115";
 
 const char* const SEED_NODES[] = { 
-  "seed1.karbowanec.com:32347",
-  "seed2.karbowanec.com:32347",
-  "seed.karbo.cloud:32347",
-  "seed.karbo.org:32347",
-  "seed.karbo.io:32347",
-  "185.86.78.40:32347",
-  "108.61.198.115:32347",
-  "45.32.232.11:32347",
-  "46.149.182.151:32347",
-  "185.185.83.26:32347"
+  "seed1.jokercoin.org:32347",
 };
 
 } // CryptoNote
