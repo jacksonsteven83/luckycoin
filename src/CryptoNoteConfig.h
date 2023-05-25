@@ -130,8 +130,8 @@ const char     CRYPTONOTE_BLOCKCHAIN_INDICES_FILENAME[]      = "blockchainindice
 const char     MINER_CONFIG_FILE_NAME[]                      = "miner_conf.json";
 } // parameters
 
-const char     CRYPTONOTE_NAME[]                             = "k‘“;
-const char     CRYPTONOTE_TICKER[]                           = "Ktest";
+const char     CRYPTONOTE_NAME[]                             = "karbowanec“;
+const char     CRYPTONOTE_TICKER[]                           = "KRB";
 const char     GENESIS_COINBASE_TX_HEX[]                     = 
 "01"                                                                // tx version
 "0a"                                                                // unlock time
