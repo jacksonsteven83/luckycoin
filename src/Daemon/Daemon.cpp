@@ -227,19 +227,6 @@ int main(int argc, char* argv[])
       return 0;
     }
 
-    std::cout << ColouredMsg("\n"
-      ":'##:::'##::::'###::::'########::'########:::'#######::\n"
-      ": ##::'##::::'## ##::: ##.... ##: ##.... ##:'##.... ##:\n"
-      ": ##:'##::::'##:. ##:: ##:::: ##: ##:::: ##: ##:::: ##:\n"
-      ": #####::::'##:::. ##: ########:: ########:: ##:::: ##:\n",
-      Common::Console::Color::BrightCyan);
-    std::cout << ColouredMsg(
-      ": ##. ##::: #########: ##.. ##::: ##.... ##: ##:::: ##:\n"
-      ": ##:. ##:: ##.... ##: ##::. ##:: ##:::: ##: ##:::: ##:\n"
-      ": ##::. ##: ##:::: ##: ##:::. ##: ########::. #######::\n"
-      ":..::::..::..:::::..::..:::::..::........::::.......:::\n\n",
-      Common::Console::Color::BrightYellow);
-
     bool testnet_mode = command_line::get_arg(vm, arg_testnet_on);
     if (testnet_mode) {
       logger(INFO) << "Starting in testnet mode!";
