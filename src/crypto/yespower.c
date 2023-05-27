@@ -1,7 +1,7 @@
 /*-
  * Copyright 2009 Colin Percival
  * Copyright 2012-2019 Alexander Peslyak
- * Copyright 2020 The Karbo developers
+ * Copyright 2023 The luckycoin developers
  *
  * All rights reserved.
  *

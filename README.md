@@ -2,11 +2,11 @@
 
 **HARDFORK AT HEIGHT 700000!!!** 
 
-Karbo is people's electronic cash, a cryptocurrency, just like Bitcoin but Ukrainian and anonymous thanks to Cryptonote technology. The key principle of CryptoNote is adaptive parameters. Karbo already has adaptive block size limit and adaptive difficulty, which we improved, and which ensures it's stable emission rate and thus makes Karbo sound money.
+luckycoin is people's electronic cash, a cryptocurrency, just like Bitcoin but Ukrainian and anonymous thanks to Cryptonote technology. The key principle of CryptoNote is adaptive parameters. luckycoin already has adaptive block size limit and adaptive difficulty, which we improved, and which ensures it's stable emission rate and thus makes luckycoin sound money.
 
 
 
-## Building Karbo 
+## Building luckycoin 
 
 ### On *nix
 
@@ -108,7 +108,7 @@ export PATH=/opt/android/tool32/arm-linux-androideabi/bin:/opt/android/tool32/bi
 ./b2 abi=aapcs architecture=arm binary-format=elf address-model=32 link=static runtime-link=static --with-chrono --with-date_time --with-filesystem --with-program_options --with-regex --with-serialization --with-system --with-thread --with-context --with-coroutine --with-atomic --build-dir=android32 --stagedir=android32 toolset=clang threading=multi threadapi=pthread target-os=android --reconfigure stage
 ```
 
-Build Karbo for 32 bit Android
+Build luckycoin for 32 bit Android
 ```
 mkdir -p build/release.android32
 cd build/release.android32

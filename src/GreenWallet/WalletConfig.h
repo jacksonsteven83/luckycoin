@@ -1,5 +1,5 @@
 // Copyright (c) 2018, The TurtleCoin Developers
-// Copyright (c) 2018-2019, The Karbo Developers
+// Copyright (c) 2018-2019, The luckycoin Developers
 // 
 // Please see the included LICENSE file for more information.
 
@@ -24,7 +24,7 @@ namespace WalletConfig
     const std::string addressBookFilename = ".addressBook.json";
 
     /* The name of your deamon */
-    const std::string daemonName = "karbowanecd";
+    const std::string daemonName = "luckycoind";
 
     /* The name to call this wallet */
     const std::string walletName = "GreenWallet";
@@ -33,7 +33,7 @@ namespace WalletConfig
     const std::string walletdName = "walletd";
 
     /* The full name of your crypto */
-    const std::string coinName = "Karbo";
+    const std::string coinName = "luckycoin";
 
     /* Where can your users contact you for support? E.g. discord */
     const std::string contactLink = "https://t.me/karbowanec";

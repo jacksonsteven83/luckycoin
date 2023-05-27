@@ -3,22 +3,22 @@
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, Ryo Currency Project
 // Copyright (c) 2018-2019, The TurtleCoin developers
-// Copyright (c) 2016-2020, The Karbo developers
+// Copyright (c) 2023, The luckycoin developers
 //
-// This file is part of Karbo.
+// This file is part of luckycoin.
 //
-// Karbo is free software: you can redistribute it and/or modify
+// luckycoin is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Karbo is distributed in the hope that it will be useful,
+// luckycoin is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with Karbo.  If not, see <http://www.gnu.org/licenses/>.
+// along with luckycoin.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
@@ -28,16 +28,16 @@
 namespace CryptoNote {
 namespace parameters {
 
-const uint64_t DIFFICULTY_TARGET                             = 10; // change to 10 seconds
+const uint64_t DIFFICULTY_TARGET                             = 60; // change to 10 seconds
 const uint64_t EXPECTED_NUMBER_OF_BLOCKS_PER_DAY             = 24 * 60 * 60 / DIFFICULTY_TARGET;
 const uint64_t CRYPTONOTE_MAX_BLOCK_NUMBER                   = 500000000;
 const size_t   CRYPTONOTE_MAX_BLOCK_BLOB_SIZE                = 500000000;
-const size_t   CRYPTONOTE_MAX_TX_SIZE                        = 1000000000;
-const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 111; // addresses start with "K"
+const size_t   CRYPTONOTE_MAX_TX_SIZE                        = 1000000000; //货币交易的最大字节数限制,用于限制交易数据大小的最大值
+const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 177239197; // addresses start with "LKC"
 const uint64_t CRYPTONOTE_TX_PROOF_BASE58_PREFIX             = 3576968; // (0x369488), starts with "Proof..."
 const uint64_t CRYPTONOTE_RESERVE_PROOF_BASE58_PREFIX        = 44907175188; // (0xa74ad1d14), starts with "RsrvPrf..."
 const uint64_t CRYPTONOTE_KEYS_SIGNATURE_BASE58_PREFIX       = 176103705; // (0xa7f2119), starts with "SigV1..."
-const size_t   CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW          = 10;
+const size_t   CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW          = 100; // 解锁代币区块时间
 const size_t   CRYPTONOTE_TX_SPENDABLE_AGE                   = 6;
 const uint64_t CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT            = DIFFICULTY_TARGET * 7;
 const uint64_t CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT_V1         = DIFFICULTY_TARGET * 3;
@@ -45,14 +45,14 @@ const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW             = 60;
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW_V1          = 11;
 
 // MONEY_SUPPLY - total number coins to be generated
-const uint64_t MONEY_SUPPLY                                  = UINT64_C(10000000000000000000);
-const uint64_t COIN                                          = UINT64_C(1000000000000);
-const uint64_t TAIL_EMISSION_REWARD                          = UINT64_C(1000000000000);
+const uint64_t MONEY_SUPPLY                                  = UINT64_C(10000000000000000000);  //10M Coins
+const uint64_t COIN                                          = UINT64_C(1000000000000);  //Coin units
+const uint64_t TAIL_EMISSION_REWARD                          = UINT64_C(1000000000000);   //交易打包奖励
 const size_t CRYPTONOTE_COIN_VERSION                         = 1;
-const unsigned EMISSION_SPEED_FACTOR                         = 18;
+const unsigned EMISSION_SPEED_FACTOR                         = 18;  //出块速度
 static_assert(EMISSION_SPEED_FACTOR <= 8 * sizeof(uint64_t), "Bad EMISSION_SPEED_FACTOR");
 
-const size_t   CRYPTONOTE_REWARD_BLOCKS_WINDOW               = 100;
+const size_t   CRYPTONOTE_REWARD_BLOCKS_WINDOW               = 100; //控制区块奖励的计算过程
 const size_t   CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE     = 1000000; //size of block (bytes) after which reward for block calculated using block size
 const size_t   CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V2  = 1000000;
 const size_t   CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V1  = 100000;
@@ -73,12 +73,12 @@ const uint64_t MAX_EXTRA_SIZE                                = 1024;
 
 const uint64_t MAX_TRANSACTION_SIZE_LIMIT                    = CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_CURRENT / 4 - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE;
 
-const size_t   DANDELION_EPOCH                               = 600;
+const size_t   DANDELION_EPOCH                               = 600; //Redis 中时间戳的最大值
 const size_t   DANDELION_STEMS                               = 2;
 const size_t   DANDELION_STEM_EMBARGO                        = 173;
 const uint8_t  DANDELION_STEM_TX_PROPAGATION_PROBABILITY     = 90;
 
-const size_t   DIFFICULTY_WINDOW                             = EXPECTED_NUMBER_OF_BLOCKS_PER_DAY; // blocks
+const size_t   DIFFICULTY_WINDOW                             = EXPECTED_NUMBER_OF_BLOCKS_PER_DAY; // blocks,挖矿难度的参数
 const size_t   DIFFICULTY_WINDOW_V2                          = 17;  // blocks
 const size_t   DIFFICULTY_WINDOW_V3                          = 60;  // blocks
 const size_t   DIFFICULTY_WINDOW_V4                          = 120; // blocks
@@ -130,8 +130,8 @@ const char     CRYPTONOTE_BLOCKCHAIN_INDICES_FILENAME[]      = "blockchainindice
 const char     MINER_CONFIG_FILE_NAME[]                      = "miner_conf.json";
 } // parameters
 
-const char     CRYPTONOTE_NAME[]                             = "karbowanec";
-const char     CRYPTONOTE_TICKER[]                           = "KRB";
+const char     CRYPTONOTE_NAME[]                             = "luckycoin";
+const char     CRYPTONOTE_TICKER[]                           = "LKC";
 const char     GENESIS_COINBASE_TX_HEX[]                     = 
 "01"                                                                // tx version
 "0a"                                                                // unlock time

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2016-2018, Karbo developers (Aiwe, Lastick)
+# Copyright (c) 2016-2018, luckycoin developers (Aiwe, Lastick)
 # English correction by Grabbers
 #
 # All rights reserved
@@ -30,9 +30,9 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-DATA_DIR="/var/karbo"
-LOG_DIR="/var/log/karbo"
-RUN_DIR="/var/run/karbo"
+DATA_DIR="/var/luckycoin"
+LOG_DIR="/var/log/luckycoin"
+RUN_DIR="/var/run/luckycoin"
 
 KRBS="/usr/sbin/simplewallet"
 

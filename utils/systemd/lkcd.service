@@ -1,0 +1,17 @@
+[Unit]
+Description=Luckycoin LKC service
+After=network.target
+
+[Service]
+Type=oneshot
+User=lucky
+Group=lucky
+PermissionsStartOnly=true
+RemainAfterExit=yes
+ExecStartPre=-/bin/mkdir -p /var/run/lucky
+ExecStartPre=/bin/chown -R lucky:lucky /var/run/lucky/
+ExecStart=/usr/lib/lucky/lkcd.sh --start
+ExecStop=/usr/lib/lucky/lkcd.sh --stop
+
+[Install]
+WantedBy=multi-user.target

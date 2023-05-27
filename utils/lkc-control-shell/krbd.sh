@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2016-2018, Karbo developers (Aiwe, Lastick)
+# Copyright (c) 2016-2018, luckycoin developers (Aiwe, Lastick)
 # English correction by Grabbers
 #
 # All rights reserved
@@ -30,27 +30,27 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-DATA_DIR="/var/karbo"
-LOG_DIR="/var/log/karbo"
-RUN_DIR="/var/run/karbo"
+DATA_DIR="/var/luckycoin"
+LOG_DIR="/var/log/luckycoin"
+RUN_DIR="/var/run/luckycoin"
 TMP_DIR="/tmp"
 HTDOCS_DIR="/tmp"
 
-KRBD="/usr/sbin/karbowanecd"
+KRBD="/usr/sbin/luckycoind"
 
 KRBD_P2P_IP="0.0.0.0"
 KRBD_P2P_PORT="32347"
 KRBD_RPC_IP="127.0.0.1"
 KRBD_RPC_PORT="32348"
 KRBD_RPC_SSL_PORT="32448"
-KRBD_RPC_CHAIN_PATH="/var/karbo/rpc_server.crt"
-KRBD_RPC_KEY_PATH="/var/karbo/rpc_server.key"
+KRBD_RPC_CHAIN_PATH="/var/luckycoin/rpc_server.crt"
+KRBD_RPC_KEY_PATH="/var/luckycoin/rpc_server.key"
 KRBD_LOG_LEVEL="2"
 KRBD_FEE_ADDRESS="Ke5tURH8PotZfvk3B444EtEu29PwtjTND4SBmw1NL7gd9gZ6y78F9cz4ZKepay2o2uH4HXu4poTUeJ4FyQMiaTukLKgrpLS"
 KRBD_FEE_AMOUNT="0.1"
 KRBD_VIEW_KEY=""
 
-KRBS_CONTROL="/usr/lib/karbo/krbs.sh"
+KRBS_CONTROL="/usr/lib/luckycoin/krbs.sh"
 
 SIGTERM_TIMEOUT=240
 SIGKILL_TIMEOUT=120
