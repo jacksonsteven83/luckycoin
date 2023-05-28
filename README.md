@@ -22,7 +22,7 @@ Run these commands:
 cd ~
 sudo apt-get install build-essential git cmake libboost-all-dev libssl-dev
 git clone https://github.com/jacksonsteven83/luckycoin.git
-cd karbowanec
+cd luckycoin
 mkdir build
 cd build
 cmake ..
@@ -70,7 +70,7 @@ Continue with:
 ```
 brew install git cmake boost
 git clone https://github.com/jacksonsteven83/luckycoin.git
-cd karbowanec
+cd luckycoin
 cd build
 cmake ..
 make
