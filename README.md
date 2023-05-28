@@ -1,11 +1,3 @@
-![Build check](https://github.com/seredat/karbowanec/workflows/Build%20check/badge.svg)
-
-**HARDFORK AT HEIGHT 700000!!!** 
-
-luckycoin is people's electronic cash, a cryptocurrency, just like Bitcoin but Ukrainian and anonymous thanks to Cryptonote technology. The key principle of CryptoNote is adaptive parameters. luckycoin already has adaptive block size limit and adaptive difficulty, which we improved, and which ensures it's stable emission rate and thus makes luckycoin sound money.
-
-
-
 ## Building luckycoin 
 
 ### On *nix
@@ -29,7 +21,7 @@ Run these commands:
 ```
 cd ~
 sudo apt-get install build-essential git cmake libboost-all-dev libssl-dev
-git clone https://github.com/seredat/karbowanec.git
+git clone https://github.com/jacksonsteven83/luckycoin.git
 cd karbowanec
 mkdir build
 cd build
@@ -77,7 +69,7 @@ For the other we recommand you to use [Homebrew](https://brew.sh)
 Continue with:
 ```
 brew install git cmake boost
-git clone https://github.com/seredat/karbowanec.git
+git clone https://github.com/jacksonsteven83/luckycoin.git
 cd karbowanec
 cd build
 cmake ..
