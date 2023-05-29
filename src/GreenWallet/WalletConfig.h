@@ -36,7 +36,7 @@ namespace WalletConfig
     const std::string coinName = "luckycoin";
 
     /* Where can your users contact you for support? E.g. discord */
-    const std::string contactLink = "https://t.me/karbowanec";
+    const std::string contactLink = "https://t.me/luckycoin";
 
     /* The number of decimals your coin has */
     const int numDecimalPlaces = CryptoNote::parameters

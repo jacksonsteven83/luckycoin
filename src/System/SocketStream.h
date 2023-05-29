@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Karbowanec developers
+// Copyright (c) 2017-2019 The luckycoin developers
 //
 // This file is part of luckycoin.
 //

@@ -51,7 +51,7 @@
 #include <crtdbg.h>
 #endif
 
-#define CHECK_FOR_UPDATE_ENDPOINT "/repos/seredat/karbowanec/tags"
+#define CHECK_FOR_UPDATE_ENDPOINT "/repos/jacksonsteven83/luckycoin/tags"
 
 using Common::JsonValue;
 using namespace CryptoNote;
