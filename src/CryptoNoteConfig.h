@@ -211,8 +211,6 @@ const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "8f80f9a5a434a9f1
 
 const char* const SEED_NODES[] = { 
   "seed1.jokercoin.org:32347",
-  "seed2.jokercoin.org:32347",
-  "seed3.jokercoin.org:32347",
 };
 
 } // CryptoNote
