@@ -28,7 +28,7 @@
 namespace CryptoNote {
 namespace parameters {
 
-const uint64_t DIFFICULTY_TARGET                             = 10; // change to 10 seconds
+const uint64_t DIFFICULTY_TARGET                             = 60; // change to 10 seconds
 const uint64_t EXPECTED_NUMBER_OF_BLOCKS_PER_DAY             = 24 * 60 * 60 / DIFFICULTY_TARGET;
 const uint64_t CRYPTONOTE_MAX_BLOCK_NUMBER                   = 500000000;
 const size_t   CRYPTONOTE_MAX_BLOCK_BLOB_SIZE                = 500000000;
@@ -211,6 +211,8 @@ const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "8f80f9a5a434a9f1
 
 const char* const SEED_NODES[] = { 
   "seed1.jokercoin.org:32347",
+  "seed2.jokercoin.org:32347",
+  "seed3.jokercoin.org:32347",
 };
 
 } // CryptoNote
