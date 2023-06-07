@@ -36,19 +36,19 @@ RUN_DIR="/var/run/luckycoin"
 TMP_DIR="/tmp"
 HTDOCS_DIR="/tmp"
 
-KRBD="/usr/sbin/luckycoind"
+LKCD="/usr/sbin/luckycoind"
 
-KRBD_P2P_IP="0.0.0.0"
-KRBD_P2P_PORT="32347"
-KRBD_RPC_IP="127.0.0.1"
-KRBD_RPC_PORT="32348"
-KRBD_RPC_SSL_PORT="32448"
-KRBD_RPC_CHAIN_PATH="/var/luckycoin/rpc_server.crt"
-KRBD_RPC_KEY_PATH="/var/luckycoin/rpc_server.key"
-KRBD_LOG_LEVEL="2"
-KRBD_FEE_ADDRESS="Ke5tURH8PotZfvk3B444EtEu29PwtjTND4SBmw1NL7gd9gZ6y78F9cz4ZKepay2o2uH4HXu4poTUeJ4FyQMiaTukLKgrpLS"
-KRBD_FEE_AMOUNT="0.1"
-KRBD_VIEW_KEY=""
+LKCD_P2P_IP="0.0.0.0"
+LKCD_P2P_PORT="32347"
+LKCD_RPC_IP="127.0.0.1"
+LKCD_RPC_PORT="32348"
+LKCD_RPC_SSL_PORT="32448"
+LKCD_RPC_CHAIN_PATH="/var/luckycoin/rpc_server.crt"
+LKCD_RPC_KEY_PATH="/var/luckycoin/rpc_server.key"
+LKCD_LOG_LEVEL="2"
+LKCD_FEE_ADDRESS="Ke5tURH8PotZfvk3B444EtEu29PwtjTND4SBmw1NL7gd9gZ6y78F9cz4ZKepay2o2uH4HXu4poTUeJ4FyQMiaTukLKgrpLS"
+LKCD_FEE_AMOUNT="0.1"
+LKCD_VIEW_KEY=""
 
 KRBS_CONTROL="/usr/lib/luckycoin/krbs.sh"
 
@@ -112,7 +112,7 @@ else
 fi
 
 # Check all files
-if [ ! -f $KRBD ]; then
+if [ ! -f $LKCD ]; then
   echo "Error: DEAMON bin file not found!"
   exit 1
 fi
@@ -131,57 +131,57 @@ fi
 
 # Function logger
 logger(){
-  if [ ! -f $LOG_DIR/krbd_control.log ]; then
-    touch $LOG_DIR/krbd_control.log
+  if [ ! -f $LOG_DIR/LKCD_control.log ]; then
+    touch $LOG_DIR/LKCD_control.log
   fi
   mess=[$(date '+%Y-%m-%d %H:%M:%S')]" "$1
-  echo $mess >> $LOG_DIR/krbd_control.log
+  echo $mess >> $LOG_DIR/LKCD_control.log
   echo $mess
 }
 
 # Funstion locker
 locker(){
   if [ "$1" = "check" ]; then
-    if [ -f $RUN_DIR/krbd_control.lock ]; then
+    if [ -f $RUN_DIR/LKCD_control.lock ]; then
       logger "LOCKER: previous task is not completed; exiting..."
       exit 0
     fi
   fi
   if [ "$1" = "init" ]; then
-    touch $RUN_DIR/krbd_control.lock
+    touch $RUN_DIR/LKCD_control.lock
   fi
     if [ "$1" = "end" ]; then
-    rm -f $RUN_DIR/krbd_control.lock
+    rm -f $RUN_DIR/LKCD_control.lock
   fi
 }
 
 # Function init service
 service_init(){
-  $KRBD --data-dir $DATA_DIR \
-        --log-file $LOG_DIR/krbd.log \
-        --log-level $KRBD_LOG_LEVEL \
+  $LKCD --data-dir $DATA_DIR \
+        --log-file $LOG_DIR/LKCD.log \
+        --log-level $LKCD_LOG_LEVEL \
         --restricted-rpc \
         --no-console \
         --enable-cors "*" \
-        --p2p-bind-ip $KRBD_P2P_IP \
-        --p2p-bind-port $KRBD_P2P_PORT \
-        --rpc-bind-ip $KRBD_RPC_IP \
-        --rpc-bind-port $KRBD_RPC_PORT \
+        --p2p-bind-ip $LKCD_P2P_IP \
+        --p2p-bind-port $LKCD_P2P_PORT \
+        --rpc-bind-ip $LKCD_RPC_IP \
+        --rpc-bind-port $LKCD_RPC_PORT \
         --rpc-bind-ssl-enable \
-        --rpc-bind-ssl-port $KRBD_RPC_SSL_PORT \
-        --rpc-chain-file $KRBD_RPC_CHAIN_PATH \
-        --rpc-key-file $KRBD_RPC_KEY_PATH \
-        --fee-address $KRBD_FEE_ADDRESS \
-        --fee-amount $KRBD_FEE_AMOUNT \
-        --view-key $KRBD_VIEW_KEY > /dev/null & echo $! > $RUN_DIR/KRBD.pid
+        --rpc-bind-ssl-port $LKCD_RPC_SSL_PORT \
+        --rpc-chain-file $LKCD_RPC_CHAIN_PATH \
+        --rpc-key-file $LKCD_RPC_KEY_PATH \
+        --fee-address $LKCD_FEE_ADDRESS \
+        --fee-amount $LKCD_FEE_AMOUNT \
+        --view-key $LKCD_VIEW_KEY > /dev/null & echo $! > $RUN_DIR/LKCD.pid
 }
 
 # Function is ready
 service_is_ready(){
   sleep 5
   for i in $(seq 1 30); do
-    if [ -f $RUN_DIR/KRBD.pid ]; then
-      pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBD.pid)
+    if [ -f $RUN_DIR/LKCD.pid ]; then
+      pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCD.pid)
       cpu_load=$(top -b -n 1 -d 1 -p $pid | grep $pid | sed 's/^\s//g' | sed 's/\s\+/\n/g' | sed -n 9p | sed 's/[^0-9,.]*//g' | sed 's/[,|.].*//g')
       logger "-> Node load CPU: "$cpu_load
       if [ "$cpu_load" -lt 5 ]; then
@@ -194,27 +194,27 @@ service_is_ready(){
 
 # Function start service
 service_start(){
-  if [ ! -f $RUN_DIR/KRBD.pid ]; then
+  if [ ! -f $RUN_DIR/LKCD.pid ]; then
     logger "START: trying to start service..."
     service_init
     sleep 5
-    if [ -f $RUN_DIR/KRBD.pid ]; then
-      pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBD.pid)
+    if [ -f $RUN_DIR/LKCD.pid ]; then
+      pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCD.pid)
       if [ -f /proc/$pid/stat ]; then
         logger "START: success!"
       fi
     fi
   else
-    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBD.pid)
+    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCD.pid)
     if [ -f /proc/$pid/stat ]; then
       logger "START: process is already running"
     else
       logger "START: abnormal termination detected; starting..."
-      rm -f $RUN_DIR/KRBD.pid
+      rm -f $RUN_DIR/LKCD.pid
       service_init
       sleep 5
-      if [ -f $RUN_DIR/KRBD.pid ]; then
-        pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBD.pid)
+      if [ -f $RUN_DIR/LKCD.pid ]; then
+        pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCD.pid)
         if [ -f /proc/$pid/stat ]; then
           logger "START: success!"
         fi
@@ -225,27 +225,27 @@ service_start(){
 
 # Function stop service
 service_stop(){
-  if [ -f $RUN_DIR/KRBD.pid ]; then
+  if [ -f $RUN_DIR/LKCD.pid ]; then
     logger "STOP: attempting to stop the service..."
-    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBD.pid)
+    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCD.pid)
     if [ -f /proc/$pid/stat ]; then
       kill $pid
       sleep 5
       for i in $(seq 1 $SIGTERM_TIMEOUT); do
         if [ ! -f /proc/$pid/stat ]; then
-          rm -f $RUN_DIR/KRBD.pid
+          rm -f $RUN_DIR/LKCD.pid
           logger "STOP: success!"
           break
         fi
         sleep 1
       done
-      if [ -f $RUN_DIR/KRBD.pid ]; then
+      if [ -f $RUN_DIR/LKCD.pid ]; then
         logger "STOP: attempt failed, trying again..."
         kill -9 $pid
         sleep 5
         for i in $(seq 1 $SIGKILL_TIMEOUT); do
           if [ ! -f /proc/$pid/stat ]; then
-            rm -f $RUN_DIR/KRBD.pid
+            rm -f $RUN_DIR/LKCD.pid
             logger "STOP: service has been killed (SIGKILL) due to ERROR!"
             break
           fi
@@ -254,7 +254,7 @@ service_stop(){
       fi
     else
       logger "STOP: PID file found, but service not detected; possible error..."
-      rm -f $RUN_DIR/KRBD.pid
+      rm -f $RUN_DIR/LKCD.pid
     fi
   else
     logger "STOP: no service found!"
@@ -295,8 +295,8 @@ archiver(){
 # Function checker
 checker(){
   logger "CHECKER: began"
-  if [ -f $RUN_DIR/KRBD.pid ]; then
-    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBD.pid)
+  if [ -f $RUN_DIR/LKCD.pid ]; then
+    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCD.pid)
     if [ -f /proc/$pid/stat ]; then
       logger "CHECKER: all fine!"
     else

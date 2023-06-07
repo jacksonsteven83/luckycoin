@@ -34,20 +34,20 @@ DATA_DIR="/var/luckycoin"
 LOG_DIR="/var/log/luckycoin"
 RUN_DIR="/var/run/luckycoin"
 
-KRBS="/usr/sbin/simplewallet"
+LKCS="/usr/sbin/simplewallet"
 
-KRBS_NODE_HOST="127.0.0.1"
-KRBS_NODE_PORT="32348"
-KRBS_WALLET="Wallet.dat"
-KRBS_PASS="pass"
-KRBS_LOG_LEVEL="3"
-KRBS_RPC_IP="127.0.0.1"
-KRBS_RPC_PORT="15000"
+LKCS_NODE_HOST="127.0.0.1"
+LKCS_NODE_PORT="32348"
+LKCS_WALLET="Wallet.dat"
+LKCS_PASS="pass"
+LKCS_LOG_LEVEL="3"
+LKCS_RPC_IP="127.0.0.1"
+LKCS_RPC_PORT="15000"
 
 SIGTERM_TIMEOUT=30
 SIGKILL_TIMEOUT=20
 
-KRBS_WALLET=$DATA_DIR/$KRBS_WALLET
+LKCS_WALLET=$DATA_DIR/$LKCS_WALLET
 
 
 ## Base check
@@ -84,12 +84,12 @@ else
 fi
 
 # Check all bin files
-if [ ! -f $KRBS ]; then
+if [ ! -f $LKCS ]; then
   echo "Error: SIMPLEWALLET bin file not found!"
   exit 1
 fi
 
-if [ ! -f $KRBS_WALLET.wallet ]; then
+if [ ! -f $LKCS_WALLET.wallet ]; then
   echo "Error: wallet bin file not found!"
   exit 1
 fi
@@ -97,65 +97,65 @@ fi
 
 # Function logger
 logger(){
-  if [ ! -f $LOG_DIR/krbs_control.log ]; then
-    touch $LOG_DIR/krbs_control.log
+  if [ ! -f $LOG_DIR/LKCS_control.log ]; then
+    touch $LOG_DIR/LKCS_control.log
   fi
   mess=[$(date '+%Y-%m-%d %H:%M:%S')]" "$1
-  echo $mess >> $LOG_DIR/krbs_control.log
+  echo $mess >> $LOG_DIR/LKCS_control.log
   echo $mess
 }
 
 # Funstion locker
 locker(){
   if [ "$1" = "check" ]; then
-    if [ -f $RUN_DIR/krbs_control.lock ]; then
+    if [ -f $RUN_DIR/LKCS_control.lock ]; then
       logger "LOCKER: previous task is not completed; exiting..."
       exit 0
     fi
   fi
   if [ "$1" = "init" ]; then
-    touch $RUN_DIR/krbs_control.lock
+    touch $RUN_DIR/LKCS_control.lock
   fi
     if [ "$1" = "end" ]; then
-    rm -f $RUN_DIR/krbs_control.lock
+    rm -f $RUN_DIR/LKCS_control.lock
   fi
 }
 
 # Function init service
 service_init(){
-  $KRBS --wallet-file $KRBS_WALLET \
-        --password $KRBS_PASS \
-        --daemon-host $KRBS_NODE_HOST \
-        --daemon-port $KRBS_NODE_PORT \
-        --rpc-bind-ip $KRBS_RPC_IP \
-        --rpc-bind-port $KRBS_RPC_PORT \
-        --log-file $LOG_DIR/krbs.log \
-        --log-level $KRBS_LOG_LEVEL > /dev/null & echo $! > $RUN_DIR/KRBS.pid
+  $LKCS --wallet-file $LKCS_WALLET \
+        --password $LKCS_PASS \
+        --daemon-host $LKCS_NODE_HOST \
+        --daemon-port $LKCS_NODE_PORT \
+        --rpc-bind-ip $LKCS_RPC_IP \
+        --rpc-bind-port $LKCS_RPC_PORT \
+        --log-file $LOG_DIR/LKCS.log \
+        --log-level $LKCS_LOG_LEVEL > /dev/null & echo $! > $RUN_DIR/LKCS.pid
 }
 
 # Function start service
 service_start(){
-  if [ ! -f $RUN_DIR/KRBS.pid ]; then
+  if [ ! -f $RUN_DIR/LKCS.pid ]; then
     logger "START: trying to start service..."
     service_init
     sleep 5
-    if [ -f $RUN_DIR/KRBS.pid ]; then
-      pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBS.pid)
+    if [ -f $RUN_DIR/LKCS.pid ]; then
+      pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCS.pid)
       if [ -f /proc/$pid/stat ]; then
         logger "START: success!"
       fi
     fi
   else
-    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBS.pid)
+    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCS.pid)
     if [ -f /proc/$pid/stat ]; then
       logger "START: process is already running"
     else
       logger "START: abnormal termination detected; starting..."
-      rm -f $RUN_DIR/KRBS.pid
+      rm -f $RUN_DIR/LKCS.pid
       service_init
       sleep 5
-      if [ -f $RUN_DIR/KRBS.pid ]; then
-        pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBS.pid)
+      if [ -f $RUN_DIR/LKCS.pid ]; then
+        pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCS.pid)
         if [ -f /proc/$pid/stat ]; then
           logger "START: success!"
         fi
@@ -166,27 +166,27 @@ service_start(){
 
 # Function stop service
 service_stop(){
-  if [ -f $RUN_DIR/KRBS.pid ]; then
+  if [ -f $RUN_DIR/LKCS.pid ]; then
     logger "STOP: attempting to stop the service..."
-    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/KRBS.pid)
+    pid=$(sed 's/[^0-9]*//g' $RUN_DIR/LKCS.pid)
     if [ -f /proc/$pid/stat ]; then
       kill $pid
       sleep 5
       for i in $(seq 1 $SIGTERM_TIMEOUT); do
         if [ ! -f /proc/$pid/stat ]; then
-          rm -f $RUN_DIR/KRBS.pid
+          rm -f $RUN_DIR/LKCS.pid
           logger "STOP: success!"
           break
         fi
         sleep 1
       done
-      if [ -f $RUN_DIR/KRBS.pid ]; then
+      if [ -f $RUN_DIR/LKCS.pid ]; then
         logger "STOP: attempt failed, trying again..."
         kill -9 $pid
         sleep 5
         for i in $(seq 1 $SIGKILL_TIMEOUT); do
           if [ ! -f /proc/$pid/stat ]; then
-            rm -f $RUN_DIR/KRBS.pid
+            rm -f $RUN_DIR/LKCS.pid
             logger "STOP: service has been killed (SIGKILL) due to ERROR!"
             break
           fi
@@ -195,7 +195,7 @@ service_stop(){
       fi
     else
       logger "STOP: PID file found, but service not detected; possible error..."
-      rm -f $RUN_DIR/KRBS.pid
+      rm -f $RUN_DIR/LKCS.pid
     fi
   else
     logger "STOP: no service found!"
