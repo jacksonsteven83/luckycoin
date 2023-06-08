@@ -673,7 +673,7 @@ namespace CryptoNote {
 
     // begin reset difficulty for new epoch
 
-    height--; // there's difference between karbo1 and karbo2 here (height vs top block index)
+    height--; // there's difference  here (height vs top block index)
 
     if (height == upgradeHeight(CryptoNote::BLOCK_MAJOR_VERSION_5)) {
 		return cumulativeDifficulties[0] / height / RESET_WORK_FACTOR_V5;
