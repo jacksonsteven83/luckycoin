@@ -26,4 +26,3 @@
 #define WALLET_RPC_ERROR_CODE_WRONG_MIXIN             -6
 #define WALLET_RPC_ERROR_CODE_WRONG_FEE               -7
 #define WALLET_RPC_ERROR_CODE_WRONG_SIGNATURE         -9
-#define WALLET_RPC_ERROR_CODE_WRONG_EXTRA             -10

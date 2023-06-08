@@ -21,12 +21,11 @@
 
 #include <system_error>
 
-#include "System/Dispatcher.h"
-#include "System/Event.h"
-#include "System/RemoteContext.h"
+#include <System/Dispatcher.h>
+#include <System/Event.h>
 #include "Logging/ILogger.h"
 #include "Logging/LoggerRef.h"
-#include "HTTP/httplib.h"
+#include "Rpc/HttpServer.h"
 
 
 namespace CryptoNote {
@@ -44,18 +43,12 @@ class TcpConnection;
 
 namespace CryptoNote {
 
-class JsonRpcServer {
+class JsonRpcServer : HttpServer {
 public:
   JsonRpcServer(System::Dispatcher& sys, System::Event& stopEvent, Logging::ILogger& loggerGroup);
   JsonRpcServer(const JsonRpcServer&) = delete;
 
-  ~JsonRpcServer();
-
-  void init(const std::string& chain_file, const std::string& key_file, bool server_ssl_enable = false);
-  void setAuth(const std::string& user, const std::string& password);
-
-  void start(const std::string& bindAddress, uint16_t bindPort, uint16_t bindPortSSL);
-  void stop();
+  void start(const std::string& bindAddress, uint16_t bindPort, const std::string& m_rpcUser, const std::string& m_rpcPassword);
 
 protected:
   static void makeErrorResponse(const std::error_code& ec, Common::JsonValue& resp);
@@ -68,25 +61,12 @@ protected:
   virtual void processJsonRpcRequest(const Common::JsonValue& req, Common::JsonValue& resp) = 0;
 
 private:
-  void processRequest(const httplib::Request& request, httplib::Response& response);
+  // HttpServer
+  virtual void processRequest(const CryptoNote::HttpRequest& request, CryptoNote::HttpResponse& response) override;
 
-  void listen(const std::string address, const uint16_t port);
-  void listen_ssl(const std::string address, const uint16_t port);
-  bool authenticate(const httplib::Request& request) const;
-
-  System::Dispatcher& m_dispatcher;
+  System::Dispatcher& system;
   System::Event& stopEvent;
   Logging::LoggerRef logger;
-  httplib::Server* http;
-  httplib::SSLServer* https;
-
-  std::vector<std::unique_ptr<System::RemoteContext<void>>> m_workers;
-
-  std::string m_chain_file;
-  std::string m_key_file;
-  std::string m_credentials;
-
-  bool m_enable_ssl;
 };
 
 } //namespace CryptoNote

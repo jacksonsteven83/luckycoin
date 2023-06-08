@@ -33,7 +33,6 @@ public:
   virtual size_t getPeerCount() const = 0;
   virtual bool isSynchronized() const = 0;
   virtual bool getConnections(std::vector<CryptoNoteConnectionContext>& connections) const = 0;
-  virtual void printDandelions() const = 0;
 };
 
 } //namespace CryptoNote

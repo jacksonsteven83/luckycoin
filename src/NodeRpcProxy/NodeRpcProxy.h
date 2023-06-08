@@ -25,7 +25,6 @@
 #include <thread>
 #include <unordered_set>
 
-#include "HTTP/httplib.h"
 #include "../CryptoNoteConfig.h"
 #include "Common/ObserverManager.h"
 #include "INode.h"
@@ -39,6 +38,8 @@ namespace System {
 
 namespace CryptoNote {
 
+class HttpClient;
+
 class INodeRpcProxyObserver {
 public:
   virtual ~INodeRpcProxyObserver() {}
@@ -47,7 +48,7 @@ public:
 
 class NodeRpcProxy : public CryptoNote::INode {
 public:
-  NodeRpcProxy(const std::string& nodeHost, unsigned short nodePort, const std::string &daemon_path, const bool &daemon_ssl);
+  NodeRpcProxy(const std::string& nodeHost, unsigned short nodePort);
   virtual ~NodeRpcProxy();
 
   virtual bool addObserver(CryptoNote::INodeObserver* observer) override;
@@ -71,6 +72,7 @@ public:
   virtual uint64_t getAlreadyGeneratedCoins() const override;
   virtual uint32_t getNodeHeight() const override;
   virtual BlockHeaderInfo getLastLocalBlockHeaderInfo() const override;
+  virtual void getFeeAddress() override;
   virtual uint64_t getTransactionsCount() const override;
   virtual uint64_t getTransactionsPoolSize() const override;
   virtual uint64_t getAltBlocksCount() const override;
@@ -93,7 +95,6 @@ public:
   virtual void getBlocks(const std::vector<Crypto::Hash>& blockHashes, std::vector<BlockDetails>& blocks, const Callback& callback) override;
   virtual void getBlocks(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t blocksNumberLimit, std::vector<BlockDetails>& blocks, uint32_t& blocksNumberWithinTimestamps, const Callback& callback) override;
   virtual void getBlock(const uint32_t blockHeight, BlockDetails &block, const Callback& callback) override;
-  virtual void getTransaction(const Crypto::Hash& transactionHash, CryptoNote::Transaction& transaction, const Callback& callback) override;
   virtual void getTransactions(const std::vector<Crypto::Hash>& transactionHashes, std::vector<TransactionDetails>& transactions, const Callback& callback) override;
   virtual void getTransactionsByPaymentId(const Crypto::Hash& paymentId, std::vector<TransactionDetails>& transactions, const Callback& callback) override;
   virtual void getPoolTransactions(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t transactionsNumberLimit, std::vector<TransactionDetails>& transactions, uint64_t& transactionsNumberWithinTimestamps, const Callback& callback) override;
@@ -102,19 +103,12 @@ public:
   virtual void getConnections(std::vector<p2pConnection>& connections, const Callback& callback) override;
 
   virtual std::string feeAddress() const override;
-  virtual uint64_t feeAmount() const override;
 
   unsigned int rpcTimeout() const { return m_rpcTimeout; }
   void rpcTimeout(unsigned int val) { m_rpcTimeout = val; }
 
-  const std::string m_daemon_path;
   const std::string m_nodeHost;
   const unsigned short m_nodePort;
-  const bool m_daemon_ssl;
-  std::string m_node_url;
-
-  virtual void setRootCert(const std::string &path) override;
-  virtual void disableVerify() override;
 
 private:
   void resetInternalState();
@@ -143,16 +137,15 @@ private:
   std::error_code doGetBlocksByHash(const std::vector<Crypto::Hash>& blockHashes, std::vector<BlockDetails>& blocks);
   std::error_code doGetBlock(const uint32_t blockHeight, BlockDetails& block);
   std::error_code doGetTransactionHashesByPaymentId(const Crypto::Hash& paymentId, std::vector<Crypto::Hash>& transactionHashes);
-  std::error_code doGetTransaction(const Crypto::Hash& transactionHash, CryptoNote::Transaction& transaction);
   std::error_code doGetTransactions(const std::vector<Crypto::Hash>& transactionHashes, std::vector<TransactionDetails>& transactions);
   std::error_code doGetBlockTimestamp(uint32_t height, uint64_t& timestamp);
   std::error_code doGetConnections(std::vector<p2pConnection>& connections);
 
   void scheduleRequest(std::function<std::error_code()>&& procedure, const Callback& callback);
   template <typename Request, typename Response>
-  std::error_code binaryCommand(const std::string& comm, const Request& req, Response& res);
+  std::error_code binaryCommand(const std::string& url, const Request& req, Response& res);
   template <typename Request, typename Response>
-  std::error_code jsonCommand(const std::string& comm, const Request& req, Response& res);
+  std::error_code jsonCommand(const std::string& url, const Request& req, Response& res);
   template <typename Request, typename Response>
   std::error_code jsonRpcCommand(const std::string& method, const Request& req, Response& res);
 
@@ -173,10 +166,7 @@ private:
   Tools::ObserverManager<CryptoNote::INodeRpcProxyObserver> m_rpcProxyObserverManager;
 
   unsigned int m_rpcTimeout;
-
-  httplib::Client* m_httpClient = nullptr;
-
-  httplib::Headers m_requestHeaders;
+  HttpClient* m_httpClient = nullptr;
   System::Event* m_httpEvent = nullptr;
 
   uint64_t m_pullInterval;
@@ -205,11 +195,7 @@ private:
   std::unordered_set<Crypto::Hash> m_knownTxs;
 
   bool m_connected;
-  bool m_initial;
   std::string m_fee_address;
-  uint64_t m_fee_amount = 0;
-  std::string m_daemon_cert;
-  bool m_daemon_no_verify;
 };
 
 }

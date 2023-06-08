@@ -31,8 +31,7 @@ enum NodeErrorCodes {
   NODE_BUSY,
   INTERNAL_NODE_ERROR,
   REQUEST_ERROR,
-  CONNECT_ERROR,
-  TIMEOUT
+  CONNECT_ERROR
 };
 
 // custom category:

@@ -42,6 +42,7 @@
 #include <System/EventLock.h>
 
 #include "PaymentServiceJsonRpcMessages.h"
+#include "NodeFactory.h"
 
 #include "Wallet/WalletGreen.h"
 #include "Wallet/LegacyKeysImporter.h"
@@ -87,9 +88,7 @@ Crypto::Hash parsePaymentId(const std::string& paymentIdStr) {
 
   Crypto::Hash paymentId;
   bool r = Common::podFromHex(paymentIdStr, paymentId);
-  if (!r) {
-    throw std::system_error(make_error_code(CryptoNote::error::WalletServiceErrorCode::WRONG_PAYMENT_ID_FORMAT));
-  }
+  assert(r);
 
   return paymentId;
 }
@@ -276,11 +275,11 @@ std::vector<PaymentService::TransactionHashesInBlockRpcInfo> convertTransactions
 
 void validateMixin(const uint16_t& mixin, const CryptoNote::Currency& currency, Logging::LoggerRef logger) {
     if (mixin < currency.minMixin() && mixin != 0) {
-        logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Mixin must be equal to or bigger than " << currency.minMixin();
+        logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Mixin must be equal to or bigger than" << currency.minMixin();
         throw std::system_error(make_error_code(CryptoNote::error::MIXIN_COUNT_TOO_SMALL));
     }
     if (mixin > currency.maxMixin()) {
-        logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Mixin must be equal to or smaller than " << currency.maxMixin();
+        logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Mixin must be equal to or smaller than" << currency.maxMixin();
         throw std::system_error(make_error_code(CryptoNote::error::MIXIN_COUNT_TOO_LARGE));
     }
 }
@@ -327,10 +326,13 @@ std::vector<CryptoNote::WalletOrder> convertWalletRpcOrdersToWalletOrders(const 
 
 }
 
-void generateNewWallet(const CryptoNote::Currency& currency, const WalletConfiguration& conf, Logging::ILogger& logger, System::Dispatcher& dispatcher, CryptoNote::INode& node) {
+void generateNewWallet(const CryptoNote::Currency& currency, const WalletConfiguration& conf, Logging::ILogger& logger, System::Dispatcher& dispatcher) {
   Logging::LoggerRef log(logger, "generateNewWallet");
 
-  CryptoNote::IWallet* wallet = new CryptoNote::WalletGreen(dispatcher, currency, node, logger);
+  CryptoNote::INode* nodeStub = NodeFactory::createNodeStub();
+  std::unique_ptr<CryptoNote::INode> nodeGuard(nodeStub);
+
+  CryptoNote::IWallet* wallet = new CryptoNote::WalletGreen(dispatcher, currency, *nodeStub, logger);
   std::unique_ptr<CryptoNote::IWallet> walletGuard(wallet);
 
   std::string address;
@@ -372,13 +374,7 @@ void generateNewWallet(const CryptoNote::Currency& currency, const WalletConfigu
       }
 
       CryptoNote::AccountBase::generateViewFromSpend(private_spend_key, private_view_key);
-
-      if (conf.scanHeight != 0) {
-        wallet->initializeWithViewKey(conf.walletFile, conf.walletPassword, private_view_key, conf.scanHeight);
-      }
-      else {
-        wallet->initializeWithViewKey(conf.walletFile, conf.walletPassword, private_view_key);
-      }
+      wallet->initializeWithViewKey(conf.walletFile, conf.walletPassword, private_view_key);
       address = wallet->createAddress(private_spend_key);
       log(Logging::INFO, Logging::BRIGHT_WHITE) << "Imported wallet successfully.";
   }
@@ -403,12 +399,7 @@ void generateNewWallet(const CryptoNote::Currency& currency, const WalletConfigu
       Crypto::SecretKey private_spend_key = *(struct Crypto::SecretKey *) &private_spend_key_hash;
       Crypto::SecretKey private_view_key = *(struct Crypto::SecretKey *) &private_view_key_hash;
 
-      if (conf.scanHeight != 0) {
-        wallet->initializeWithViewKey(conf.walletFile, conf.walletPassword, private_view_key, conf.scanHeight);
-      }
-      else {
-        wallet->initializeWithViewKey(conf.walletFile, conf.walletPassword, private_view_key);
-      }
+      wallet->initializeWithViewKey(conf.walletFile, conf.walletPassword, private_view_key);
       address = wallet->createAddress(private_spend_key);
       log(Logging::INFO, Logging::BRIGHT_WHITE) << "Wallet imported successfully.";
     }
@@ -416,19 +407,6 @@ void generateNewWallet(const CryptoNote::Currency& currency, const WalletConfigu
 
   wallet->save(CryptoNote::WalletSaveLevel::SAVE_KEYS_ONLY);
   log(Logging::INFO, Logging::BRIGHT_WHITE) << "Wallet is saved";
-}
-
-void changePassword(const CryptoNote::Currency& currency, const WalletConfiguration& conf, Logging::ILogger& logger, System::Dispatcher& dispatcher, CryptoNote::INode& node, const std::string newPassword) {
-  Logging::LoggerRef log(logger, "changePassword");
-  log(Logging::INFO, Logging::BRIGHT_WHITE) << "Changing wallet password...";
-
-  CryptoNote::IWallet* wallet = new CryptoNote::WalletGreen(dispatcher, currency, node, logger);
-  std::unique_ptr<CryptoNote::IWallet> walletGuard(wallet);
-
-  wallet->start();
-  wallet->load(conf.walletFile, conf.walletPassword);
-  wallet->changePassword(conf.walletPassword, newPassword);
-  wallet->save();
 }
 
 WalletService::WalletService(const CryptoNote::Currency& currency, System::Dispatcher& sys, CryptoNote::INode& node,
@@ -1187,40 +1165,6 @@ std::error_code WalletService::getReserveProof(std::string& reserveProof, const 
   return std::error_code();
 }
 
-std::error_code WalletService::signMessage(const std::string& message, const std::string& address, std::string& signature) {
-  try {
-    System::EventLock lk(readyEvent);
-
-    signature = wallet.signMessage(message, address);
-  }
-  catch (std::system_error& x) {
-    logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Error while signing message: " << x.what();
-    return x.code();
-  }
-  catch (std::exception& x) {
-    logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Error while signing message: " << x.what();
-    return make_error_code(CryptoNote::error::INTERNAL_WALLET_ERROR);
-  }
-  return std::error_code();
-}
-
-std::error_code WalletService::verifyMessage(const std::string& message, const std::string& signature, const std::string& address, bool& isValid) {
-  try {
-    System::EventLock lk(readyEvent);
-
-    isValid = wallet.verifyMessage(message, address, signature);
-  }
-  catch (std::system_error& x) {
-    logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Error while verifying message: " << x.what();
-    return x.code();
-  }
-  catch (std::exception& x) {
-    logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Error while verifying message: " << x.what();
-    return make_error_code(CryptoNote::error::INTERNAL_WALLET_ERROR);
-  }
-  return std::error_code();
-}
-
 std::error_code WalletService::getAddresses(std::vector<std::string>& addresses) {
   try {
     System::EventLock lk(readyEvent);
@@ -1262,7 +1206,7 @@ std::error_code WalletService::sendTransaction(const SendTransaction::Request& r
     if (!request.changeAddress.empty()) {
       validateAddresses({ request.changeAddress }, currency, logger);
     }
-    validateMixin(request.anonymity, currency, logger);
+	validateMixin(request.anonymity, currency, logger);
 
     CryptoNote::TransactionParameters sendParams;
     if (!request.paymentId.empty()) {
@@ -1278,10 +1222,10 @@ std::error_code WalletService::sendTransaction(const SendTransaction::Request& r
     sendParams.unlockTimestamp = request.unlockTime;
     sendParams.changeDestination = request.changeAddress;
 
-    Crypto::SecretKey tx_key;
+	Crypto::SecretKey tx_key;
     size_t transactionId = wallet.transfer(sendParams, tx_key);
     transactionHash = Common::podToHex(wallet.getTransaction(transactionId).hash);
-    transactionSecretKey = Common::podToHex(tx_key);
+	transactionSecretKey = Common::podToHex(tx_key);
 
     logger(Logging::DEBUGGING) << "Transaction " << transactionHash << " has been sent";
   } catch (std::system_error& x) {
@@ -1457,19 +1401,19 @@ std::error_code WalletService::getStatus(uint32_t& blockCount, uint32_t& knownBl
   return std::error_code();
 }
 
-std::error_code WalletService::validateAddress(const std::string& address, bool& isValid, std::string& _address, std::string& spendPublicKey, std::string& viewPublicKey) {
+std::error_code WalletService::validateAddress(const std::string& address, bool& isvalid, std::string& _address, std::string& spendPublicKey, std::string& viewPublicKey) {
   try {
     System::EventLock lk(readyEvent);
 
     CryptoNote::AccountPublicAddress acc = boost::value_initialized<AccountPublicAddress>();
     if (currency.parseAccountAddressString(address, acc)) {
-      isValid = true;
+      isvalid = true;
       _address = currency.accountAddressAsString(acc);
       spendPublicKey = Common::podToHex(acc.spendPublicKey);
       viewPublicKey = Common::podToHex(acc.viewPublicKey);
     }
     else {
-      isValid = false;
+      isvalid = false;
     }
   }
   catch (std::system_error& x) {

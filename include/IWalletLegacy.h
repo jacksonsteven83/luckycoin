@@ -103,7 +103,7 @@ public:
   virtual void addObserver(IWalletLegacyObserver* observer) = 0;
   virtual void removeObserver(IWalletLegacyObserver* observer) = 0;
 
-  virtual void initAndGenerateNonDeterministic(const std::string& password) = 0;
+  virtual void initAndGenerate(const std::string& password) = 0;
   virtual void initAndGenerateDeterministic(const std::string& password) = 0;
   virtual void initAndLoad(std::istream& source, const std::string& password) = 0;
   virtual void initWithKeys(const AccountKeys& accountKeys, const std::string& password) = 0;
@@ -138,18 +138,9 @@ public:
   virtual void getAccountKeys(AccountKeys& keys) = 0;
   virtual bool getSeed(std::string& electrum_words) = 0;
 
-  virtual std::vector<TransactionOutputInformation> getOutputs() = 0;
-  virtual std::vector<TransactionOutputInformation> getLockedOutputs() = 0;
-  virtual std::vector<TransactionOutputInformation> getUnlockedOutputs() = 0;
-  virtual std::vector<TransactionSpentOutputInformation> getSpentOutputs() = 0;
-
   virtual TransactionId sendTransaction(const WalletLegacyTransfer& transfer, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0) = 0;
   virtual TransactionId sendTransaction(const std::vector<WalletLegacyTransfer>& transfers, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0) = 0;
-  virtual TransactionId sendTransaction(const std::vector<WalletLegacyTransfer>& transfers, const std::list<TransactionOutputInformation>& selectedOuts, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0) = 0;
   virtual TransactionId sendFusionTransaction(const std::list<TransactionOutputInformation>& fusionInputs, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0) = 0;
-  virtual std::string prepareRawTransaction(TransactionId& transactionId, const std::vector<WalletLegacyTransfer>& transfers, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) = 0;
-  virtual std::string prepareRawTransaction(TransactionId& transactionId, const std::vector<WalletLegacyTransfer>& transfers, const std::list<TransactionOutputInformation>& selectedOuts, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) = 0;
-  virtual std::string prepareRawTransaction(TransactionId& transactionId, const WalletLegacyTransfer& transfer, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) = 0;
   virtual std::error_code cancelTransaction(size_t transferId) = 0;
 
   virtual size_t estimateFusion(const uint64_t& threshold) = 0;
@@ -161,8 +152,8 @@ public:
   virtual std::vector<TransactionOutputInformation> getTransactionInputs(const Crypto::Hash& transactionHash, uint32_t flags) const = 0;
   virtual bool isFusionTransaction(const WalletLegacyTransaction& walletTx) const = 0;
 
-  virtual std::string sign_message(const std::string &message) = 0;
-  virtual bool verify_message(const std::string &message, const CryptoNote::AccountPublicAddress &address, const std::string &signature) = 0;
+  virtual std::string sign_message(const std::string &data) = 0;
+  virtual bool verify_message(const std::string &data, const CryptoNote::AccountPublicAddress &address, const std::string &signature) = 0;
 
   virtual bool isTrackingWallet() = 0;
 };

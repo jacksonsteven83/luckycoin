@@ -58,12 +58,10 @@ namespace CryptoNote
     m_last_hr_merge_time(0),
     m_hashes(0),
     m_do_print_hashrate(false),
-    m_do_log_hashrate(false),
     m_do_mining(false),
     m_current_hash_rate(0),
     m_update_block_template_interval(5),
-    m_update_merge_hr_interval(2),
-    m_update_log_hr_interval(60)
+    m_update_merge_hr_interval(2)
   {
   }
   //-----------------------------------------------------------------------------------------------------
@@ -113,7 +111,7 @@ namespace CryptoNote
       extra_nonce = m_extra_messages[m_config.current_extra_message_index];
     }
 
-    if(!m_handler.get_block_template(bl, m_mine_account, di, height, extra_nonce)) {
+    if(!m_handler.get_block_template(bl, m_mine_address, di, height, extra_nonce)) {
       logger(ERROR) << "Failed to get_block_template(), stopping mining";
       return false;
     }
@@ -131,12 +129,7 @@ namespace CryptoNote
     });
 
     m_update_merge_hr_interval.call([&](){
-      merge_hr(false);
-      return true;
-    });
-    
-    m_update_log_hr_interval.call([&](){
-      merge_hr(true);
+      merge_hr();
       return true;
     });
 
@@ -154,7 +147,7 @@ namespace CryptoNote
   }
 
   //-----------------------------------------------------------------------------------------------------
-  void miner::merge_hr(bool do_log)
+  void miner::merge_hr()
   {
     if(m_last_hr_merge_time && is_mining()) {
       m_current_hash_rate = m_hashes * 1000 / (millisecondsSinceEpoch() - m_last_hr_merge_time + 1);
@@ -163,16 +156,13 @@ namespace CryptoNote
       if(m_last_hash_rates.size() > 19)
         m_last_hash_rates.pop_front();
 
-      uint64_t total_hr = std::accumulate(m_last_hash_rates.begin(), m_last_hash_rates.end(), (uint64_t)0);
-      float hr = static_cast<float>(total_hr) / static_cast<float>(m_last_hash_rates.size());
-
-      if(m_do_print_hashrate)
-        std::cout << "Hashrate: " << std::setprecision(2) << std::fixed << hr << " H/s" << "        \r";
-
-      if (do_log && m_do_log_hashrate)
-        logger(INFO, BRIGHT_WHITE) << "Hashrate: " << std::setprecision(2) << std::fixed << hr << " H/s";
+      if(m_do_print_hashrate) {
+        uint64_t total_hr = std::accumulate(m_last_hash_rates.begin(), m_last_hash_rates.end(), static_cast<uint64_t>(0));
+        float hr = static_cast<float>(total_hr)/static_cast<float>(m_last_hash_rates.size());
+        std::cout << "hashrate: " << std::setprecision(4) << std::fixed << hr << ENDL;
+      }
     }
-
+    
     m_last_hr_merge_time = millisecondsSinceEpoch();
     m_hashes = 0;
   }
@@ -206,33 +196,17 @@ namespace CryptoNote
       logger(INFO) << "Loaded " << m_extra_messages.size() << " extra messages, current index " << m_config.current_extra_message_index;
     }
 
-    if (!config.miningSpendKey.empty() && !config.miningViewKey.empty()) {
-      Crypto::Hash private_key_hash;
-      size_t size;
-      if (!Common::fromHex(config.miningSpendKey, &private_key_hash, sizeof(private_key_hash), size) || size != sizeof(private_key_hash)) {
-        logger(Logging::INFO) << "Could not parse private spend key";
+    if(!config.startMining.empty()) {
+      if (!m_currency.parseAccountAddressString(config.startMining, m_mine_address)) {
+        logger(ERROR) << "Target account address " << config.startMining << " has wrong format, starting daemon canceled";
         return false;
       }
-      m_mine_account.spendSecretKey = *(struct Crypto::SecretKey *) &private_key_hash;
-      if (!Common::fromHex(config.miningViewKey, &private_key_hash, sizeof(private_key_hash), size) || size != sizeof(private_key_hash)) {
-        logger(Logging::INFO) << "Could not parse private view key";
-        return false;
-      }
-      m_mine_account.viewSecretKey = *(struct Crypto::SecretKey *) &private_key_hash;
-
-      Crypto::secret_key_to_public_key(m_mine_account.spendSecretKey, m_mine_account.address.spendPublicKey);
-      Crypto::secret_key_to_public_key(m_mine_account.viewSecretKey, m_mine_account.address.viewPublicKey);
-
+      m_threads_total = 1;
       m_do_mining = true;
+      if(config.miningThreads > 0) {
+        m_threads_total = config.miningThreads;
+      }
     }
-
-    m_threads_total = 1;
-    if (config.miningThreads > 0) {
-      m_threads_total = config.miningThreads;
-    }
-
-    m_do_print_hashrate = config.printHashrate;
-    m_do_log_hashrate = config.logHashrate;
 
     return true;
   }
@@ -242,7 +216,7 @@ namespace CryptoNote
     return !m_stop;
   }
   //-----------------------------------------------------------------------------------------------------
-  bool miner::start(const AccountKeys& acc, size_t threads_count)
+  bool miner::start(const AccountPublicAddress& adr, size_t threads_count)
   {   
     if (is_mining()) {
       logger(ERROR) << "Starting miner but it's already started";
@@ -256,8 +230,7 @@ namespace CryptoNote
       return false;
     }
 
-    m_mine_account = acc;
-
+    m_mine_address = adr;
     m_threads_total = static_cast<uint32_t>(threads_count);
     m_starter_nonce = Random::randomValue<uint32_t>();
 
@@ -293,90 +266,22 @@ namespace CryptoNote
   //-----------------------------------------------------------------------------------------------------
   bool miner::stop()
   {
-    std::lock_guard<std::mutex> lk(m_threads_lock);
-
-    bool mining = !m_threads.empty();
-    if (!mining)
-    {
-      logger(TRACE) << "Not mining - nothing to stop";
-      return false;
-    }
-
     send_stop_signal();
+    std::lock_guard<std::mutex> lk(m_threads_lock);
 
     for (auto& th : m_threads) {
       th.join();
     }
 
     m_threads.clear();
-    m_current_hash_rate = 0;
-    m_last_hash_rates.clear();
     logger(INFO) << "Mining has been stopped, " << m_threads.size() << " finished" ;
     return true;
-  }
-  //-----------------------------------------------------------------------------------------------------
-  bool miner::find_nonce_for_given_block(Crypto::cn_context &context, Block& bl, const difficulty_type& diffic) {
-
-    unsigned nthreads = std::thread::hardware_concurrency();
-
-    if (nthreads > 0 && diffic > 5) {
-      std::vector<std::future<void>> threads(nthreads);
-      std::atomic<uint32_t> foundNonce;
-      std::atomic<bool> found(false);
-      uint32_t startNonce = Random::randomValue<uint32_t>();
-
-      for (unsigned i = 0; i < nthreads; ++i) {
-        threads[i] = std::async(std::launch::async, [&, i]() {
-          Crypto::cn_context localctx;
-          Crypto::Hash h;
-
-          Block lb(bl); // copy to local block
-
-          for (uint32_t nonce = startNonce + i; !found; nonce += nthreads) {
-            lb.nonce = nonce;
-
-            if (!m_handler.getBlockLongHash(localctx, lb, h)) {
-              return;
-            }
-
-            if (check_hash(h, diffic)) {
-              foundNonce = nonce;
-              found = true;
-              return;
-            }
-          }
-        });
-      }
-
-      for (auto& t : threads) {
-        t.wait();
-      }
-
-      if (found) {
-        bl.nonce = foundNonce.load();
-      }
-
-      return found;
-    } else {
-      for (; bl.nonce != std::numeric_limits<uint32_t>::max(); bl.nonce++) {
-        Crypto::Hash h;
-        if (!m_handler.getBlockLongHash(context, bl, h)) {
-          return false;
-        }
-
-        if (check_hash(h, diffic)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
   }
   //-----------------------------------------------------------------------------------------------------
   void miner::on_synchronized()
   {
     if(m_do_mining) {
-      start(m_mine_account, m_threads_total);
+      start(m_mine_address, m_threads_total);
     }
   }
   //-----------------------------------------------------------------------------------------------------
@@ -436,62 +341,20 @@ namespace CryptoNote
       }
 
       b.nonce = nonce;
-
-      // step 1: sing the block
-      if (b.majorVersion >= CryptoNote::BLOCK_MAJOR_VERSION_5) {
-        BinaryArray ba;
-        if (!get_block_hashing_blob(b, ba)) {
-          logger(ERROR) << "get_block_hashing_blob for signature failed.";
-          m_stop = true;
-        }
-        Crypto::Hash h = Crypto::cn_fast_hash(ba.data(), ba.size());
-        try {
-          Crypto::PublicKey txPublicKey = getTransactionPublicKeyFromExtra(b.baseTransaction.extra);
-          Crypto::KeyDerivation derivation;
-          if (!Crypto::generate_key_derivation(txPublicKey, m_mine_account.viewSecretKey, derivation)) {
-            logger(WARNING) << "failed to generate_key_derivation for block signature";
-            m_stop = true;
-          }
-          Crypto::SecretKey ephSecKey;
-          Crypto::derive_secret_key(derivation, 0, m_mine_account.spendSecretKey, ephSecKey);
-          Crypto::PublicKey ephPubKey = boost::get<KeyOutput>(b.baseTransaction.outputs[0].target).key;
-
-          Crypto::generate_signature(h, ephPubKey, ephSecKey, b.signature);
-        }
-        catch (std::exception& e) {
-          logger(WARNING) << "Signing block failed: " << e.what();
-          m_stop = true;
-        }
+      Crypto::Hash h;
+      if (!m_stop && !get_block_longhash(context, b, h)) {
+        logger(ERROR) << "Failed to get block long hash";
+        m_stop = true;
       }
 
-      // step 2: get long hash
-      Crypto::Hash pow;
-      if (!m_stop) {
-        if (!m_handler.getBlockLongHash(context, b, pow)) {
-          logger(ERROR) << "getBlockLongHash failed.";
-          m_stop = true;
-        }
-      }
-
-      if (!m_stop && check_hash(pow, local_diff)) {
-        // we lucky!
+      if (!m_stop && check_hash(h, local_diff))
+      {
+        //we lucky!
         ++m_config.current_extra_message_index;
 
-        uint32_t bh = boost::get<BaseInput>(b.baseTransaction.inputs[0]).blockIndex;
-        Crypto::Hash id;
-        if (!get_block_hash(b, id)) {
-          logger(ERROR) << "Failed to get block hash.";
-          m_stop = true;
-        }
+        logger(INFO, GREEN) << "Found block for difficulty: " << local_diff;
 
-        logger(INFO, GREEN) << "Found block for difficulty "
-                            << local_diff
-                            << " at height " << bh
-                            << " v. " << (int)b.majorVersion << "\r\n"
-                            << "POW: " << Common::podToHex(pow) << "\r\n"
-                            << " ID: " << Common::podToHex(id);
-
-        if (!m_handler.handle_block_found(b)) {
+        if(!m_handler.handle_block_found(b)) {
           --m_config.current_extra_message_index;
         } else {
           //success update, lets update config

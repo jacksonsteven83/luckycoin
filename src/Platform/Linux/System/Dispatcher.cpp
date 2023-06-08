@@ -17,12 +17,11 @@
 
 #include "Dispatcher.h"
 #include <cassert>
-#include <fcntl.h>
-#include <pthread.h>
+
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
-#include <stdexcept>
+#include <fcntl.h>
 #include <string.h>
 #include <ucontext.h>
 #include <unistd.h>

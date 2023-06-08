@@ -21,12 +21,9 @@
 #include <map>
 #include <string>
 #include <unordered_map>
-#include <parallel_hashmap/phmap.h>
 
 #include "crypto/hash.h"
 #include "CryptoNoteBasic.h"
-
-using phmap::flat_hash_map;
 
 namespace CryptoNote {
 
@@ -114,8 +111,7 @@ public:
     archive & lastGeneratedTxNumber;
   }
 private:
-  flat_hash_map<uint32_t, uint64_t> index;
-
+  std::unordered_map<uint32_t, uint64_t> index;
   uint64_t lastGeneratedTxNumber;
   bool enabled = false;
 };

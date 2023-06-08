@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
-cmake_policy(SET CMP0048 NEW)
+project (miniupnpc C)
 
 set (MINIUPNPC_VERSION 2.1)
 set (MINIUPNPC_API_VERSION 17)
-
-project (miniupnpc VERSION ${MINIUPNPC_VERSION} LANGUAGES C)
 
 option (UPNPC_BUILD_STATIC "Build static library" TRUE)
 option (UPNPC_BUILD_SHARED "Build shared library" FALSE)

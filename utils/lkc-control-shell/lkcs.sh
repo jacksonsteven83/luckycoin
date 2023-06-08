@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2016-2018, luckycoin developers (Aiwe, Lastick)
+# Copyright (c) 2016-2018, luckycoin developers
 # English correction by Grabbers
 #
 # All rights reserved

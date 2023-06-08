@@ -10,8 +10,6 @@
 #include <boost/algorithm/string.hpp>
 
 #include <cmath>
-#include <chrono>
-#include <thread>
 
 #include <Common/Base58.h>
 #include <Common/StringTools.h>
@@ -25,8 +23,6 @@
 #include <Common/ColouredMsg.h>
 #include <Common/PasswordContainer.h>
 #include <GreenWallet/WalletConfig.h>
-
-#define _GLIBCXX_USE_NANOSLEEP 1
 
 void confirmPassword(std::string walletPass, std::string msg)
 {
@@ -205,13 +201,6 @@ std::string unixTimeToDate(uint64_t timestamp)
 	return std::string(buffer);
 }
 
-uint64_t calculateNodeFee(uint64_t amount) {
-  uint64_t node_fee = static_cast<int64_t>(amount * 0.0025);
-  if (node_fee > (uint64_t)CryptoNote::parameters::COIN)
-      node_fee = (uint64_t)CryptoNote::parameters::COIN;
-  return node_fee;
-}
-
 std::string createIntegratedAddress(std::string address, std::string paymentID)
 {
 	uint64_t prefix;
@@ -283,7 +272,7 @@ bool shutdown(std::shared_ptr<WalletInfo> walletInfo, CryptoNote::INode &node,
 {
     if (alreadyShuttingDown)
     {
-        std::cout << "Patience please, we're already shutting down!"
+        std::cout << "Patience please, we're already shutting down!" 
                   << std::endl;
 
         return false;
@@ -340,6 +329,6 @@ bool shutdown(std::shared_ptr<WalletInfo> walletInfo, CryptoNote::INode &node,
     timelyShutdown.join();
 
     std::cout << "Bye." << std::endl;
-
+    
     return true;
 }

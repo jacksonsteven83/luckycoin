@@ -9,9 +9,6 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include <chrono>
-#include <thread>
-
 #include <Common/StringTools.h>
 
 #include "CryptoNoteConfig.h"
@@ -22,8 +19,6 @@
 #include <iostream>
 
 #include "IWallet.h"
-
-#define _GLIBCXX_USE_NANOSLEEP 1
 
 #ifndef __has_cpp_attribute
 #define __has_cpp_attribute(name) 0
@@ -132,7 +127,7 @@ bool confirmTransaction(CryptoNote::TransactionParameters t,
     {
         std::cout << ".";
     }
-
+    
     std::cout << std::endl << std::endl
               << "FROM: " << SuccessMsg(walletInfo->walletFileName)
               << std::endl
@@ -173,7 +168,7 @@ void sendMultipleTransactions(CryptoNote::WalletGreen &wallet,
                       << std::endl;
 
 			Crypto::SecretKey txSecretKey;
-
+            
 			wallet.updateInternalCache();
 
             const uint64_t neededBalance = tx.destinations[0].amount + tx.fee;
@@ -182,18 +177,18 @@ void sendMultipleTransactions(CryptoNote::WalletGreen &wallet,
             {
                 const size_t id = wallet.transfer(tx, txSecretKey);
 
-                const CryptoNote::WalletTransaction sentTx
+                const CryptoNote::WalletTransaction sentTx 
                     = wallet.getTransaction(id);
 
                 std::cout << SuccessMsg("Transaction has been sent!")
                           << std::endl
-                          << SuccessMsg("Hash: "
+                          << SuccessMsg("Hash: " 
                                       + Common::podToHex(sentTx.hash))
                           << std::endl << std::endl;
 
                 break;
             }
-
+           
             std::cout << "Waiting for balance to unlock to send next "
                       << "transaction."
                       << std::endl
@@ -209,11 +204,11 @@ void sendMultipleTransactions(CryptoNote::WalletGreen &wallet,
     std::cout << SuccessMsg("All transactions sent!") << std::endl;
 }
 
-void splitTx(CryptoNote::WalletGreen &wallet,
+void splitTx(CryptoNote::WalletGreen &wallet, 
              CryptoNote::TransactionParameters p)
 {
     std::cout << "Transaction is still too large to send, splitting into "
-              << "multiple chunks."
+              << "multiple chunks." 
               << std::endl
               << "This may take a long time."
               << std::endl
@@ -247,8 +242,8 @@ void splitTx(CryptoNote::WalletGreen &wallet,
            check at the end that each transaction is small enough, and
            if not, we up the numTxMultiplier and try again with more
            transactions. */
-        int numTransactions
-            = int(numTxMultiplier *
+        int numTransactions 
+            = int(numTxMultiplier * 
                  (std::ceil(double(txSize) / double(maxSize))));
 
         /* Split the requested fee over each transaction, i.e. if a fee of 200
@@ -260,7 +255,7 @@ void splitTx(CryptoNote::WalletGreen &wallet,
         const uint64_t totalFee = feePerTx * numTransactions;
 
         const uint64_t totalCost = p.destinations[0].amount + totalFee;
-
+        
         /* If we have to use the minimum fee instead of splitting the total fee,
            then it is possible the user no longer has the balance to cover this
            transaction. So, we slightly lower the amount they are sending. */
@@ -301,7 +296,7 @@ void splitTx(CryptoNote::WalletGreen &wallet,
     }
 }
 
-void transfer(std::shared_ptr<WalletInfo> walletInfo, uint32_t height, bool sendAll, std::string nodeAddress, uint64_t nodeFee)
+void transfer(std::shared_ptr<WalletInfo> walletInfo, uint32_t height, bool sendAll, std::string nodeAddress)
 {
     std::cout << InformationMsg("Note: You can type cancel at any time to "
                                 "cancel the transaction")
@@ -325,11 +320,12 @@ void transfer(std::shared_ptr<WalletInfo> walletInfo, uint32_t height, bool send
 
     const std::string address = maybeAddress.x;
 
-
+	
 
 	/* Make sure we set this later if we're sending everything by deducting
 	   the fee from full balance */
 	uint64_t amount = 0;
+	uint64_t nodeFee = 0;
 
 	uint64_t mixin = WalletConfig::defaultMixin;
 
@@ -345,10 +341,8 @@ void transfer(std::shared_ptr<WalletInfo> walletInfo, uint32_t height, bool send
 		}
 		amount = maybeAmount.x;
 
-    if (!nodeAddress.empty() && nodeFee == 0)
-      nodeFee = calculateNodeFee(amount);
-    else if (!nodeAddress.empty() && nodeFee != 0)
-      nodeFee = std::min<uint64_t>(nodeFee, (uint64_t)CryptoNote::parameters::COIN);
+		if (!nodeAddress.empty())
+			nodeFee = calculateNodeFee(amount);
 
 		switch (doWeHaveEnoughBalance(amount, WalletConfig::defaultFee,
 			walletInfo, height, nodeFee))
@@ -411,7 +405,7 @@ void transfer(std::shared_ptr<WalletInfo> walletInfo, uint32_t height, bool send
 			if (!nodeAddress.empty())
 				nodeFee = calculateNodeFee(amount);
 
-			std::cout << WarningMsg("Due to unmixable inputs, we are unable to ")
+			std::cout << WarningMsg("Due to dust inputs, we are unable to ")
 				<< WarningMsg("send ")
 				<< InformationMsg(formatAmount(unsendable))
 				<< WarningMsg("of your balance.") << std::endl;
@@ -453,6 +447,13 @@ void transfer(std::shared_ptr<WalletInfo> walletInfo, uint32_t height, bool send
     doTransfer(address, amount, fee, extra, walletInfo, height, mixin, nodeAddress, nodeFee);
 }
 
+uint64_t calculateNodeFee(uint64_t amount) {
+	uint64_t node_fee = static_cast<int64_t>(amount * 0.0025);
+	if (node_fee > (uint64_t)10000000000000)
+		node_fee = (uint64_t)10000000000000;
+	return node_fee;
+}
+
 BalanceInfo doWeHaveEnoughBalance(uint64_t amount, uint64_t fee,
                                   std::shared_ptr<WalletInfo> walletInfo,
 	                              uint32_t height, uint64_t nodeFee)
@@ -489,7 +490,7 @@ BalanceInfo doWeHaveEnoughBalance(uint64_t amount, uint64_t fee,
 	{
 		std::cout << std::endl
 			<< WarningMsg("This transaction is unable to be sent ")
-			<< WarningMsg("due to unmixable inputs.") << std::endl
+			<< WarningMsg("due to dust inputs.") << std::endl
 			<< "You can send "
 			<< InformationMsg(formatAmount(balanceNoDust))
 			<< " without issues (includes a network fee of "
@@ -581,7 +582,7 @@ void doTransfer(std::string address, uint64_t amount, uint64_t fee,
                 }
                 else
                 {
-
+                    
                     const size_t id = walletInfo->wallet.transfer(p, txSecretKey);
 
                     const CryptoNote::WalletTransaction tx
@@ -589,7 +590,7 @@ void doTransfer(std::string address, uint64_t amount, uint64_t fee,
 
                     std::cout << SuccessMsg("Transaction has been sent!")
                               << std::endl
-                              << SuccessMsg("Hash:"
+                              << SuccessMsg("Hash:" 
                                           + Common::podToHex(tx.hash))
                               << std::endl;
                 }
@@ -597,13 +598,13 @@ void doTransfer(std::string address, uint64_t amount, uint64_t fee,
             else
             {
                 const size_t id = walletInfo->wallet.transfer(p, txSecretKey);
-
-                const CryptoNote::WalletTransaction tx
+                
+                const CryptoNote::WalletTransaction tx 
                     = walletInfo->wallet.getTransaction(id);
 
                 std::cout << SuccessMsg("Transaction has been sent!")
                           << std::endl
-                          << SuccessMsg("Hash: " +
+                          << SuccessMsg("Hash: " + 
                                         Common::podToHex(tx.hash))
                           << std::endl;
             }
@@ -632,7 +633,7 @@ void doTransfer(std::string address, uint64_t amount, uint64_t fee,
                 case WalletErrors::CryptoNote::error::MIXIN_COUNT_TOO_BIG:
                 case NodeErrors::CryptoNote::error::INTERNAL_NODE_ERROR:
                 {
-
+            
                     if (wrongAmount)
                     {
                         std::cout << WarningMsg("Failed to send transaction "
@@ -819,7 +820,7 @@ Maybe<uint64_t> getFee()
     while (true)
     {
         std::string stringAmount;
-        std::cout << std::endl
+        std::cout << std::endl 
                   << InformationMsg("What fee do you want to use?")
                   << std::endl
                   << "Hit enter for the default fee of "
@@ -970,7 +971,7 @@ bool parseAddress(std::string address)
        reasons. To work around this, we can just check that the address starts
        with K, as long as the prefix is the K prefix. This keeps it
        working on testnets with different prefixes. */
-    else if (address.substr(0, WalletConfig::addressPrefix.length())
+    else if (address.substr(0, WalletConfig::addressPrefix.length()) 
           != WalletConfig::addressPrefix)
     {
         std::cout << WarningMsg("Invalid address! It should start with ")

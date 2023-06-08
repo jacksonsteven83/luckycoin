@@ -74,7 +74,11 @@ public:
   int getTimer();
   void pushTimer(int timer);
 
-static const int SIZEOF_PTHREAD_MUTEX_T = sizeof(pthread_mutex_t);
+#ifdef __LP64__
+  static const int SIZEOF_PTHREAD_MUTEX_T = 56 + sizeof(long);
+#else
+  static const int SIZEOF_PTHREAD_MUTEX_T = 40 + sizeof(long);
+#endif
 
 private:
   void spawn(std::function<void()>&& procedure);

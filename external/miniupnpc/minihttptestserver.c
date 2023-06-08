@@ -271,7 +271,6 @@ const struct {
 	{MODE_CHUNKED, "chunked"},
 	{MODE_ADDCRAP, "addcrap"},
 	{MODE_NORMAL, "normal"},
-	{MODE_FAVICON, "favicon.ico"},
 	{MODE_INVALID, NULL}
 };
 

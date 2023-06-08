@@ -33,11 +33,8 @@ public:
   void init(const boost::program_options::variables_map& options);
 
   std::string extraMessages;
-  std::string miningSpendKey;
-  std::string miningViewKey;
+  std::string startMining;
   uint32_t miningThreads;
-  bool printHashrate = false;
-  bool logHashrate = false;
 };
 
 } //namespace CryptoNote

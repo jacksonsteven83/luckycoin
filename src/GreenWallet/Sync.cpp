@@ -9,9 +9,7 @@
 
 #include <Common/StringTools.h>
 
-#include <chrono>
 #include <iostream>
-#include <thread>
 
 #include <Common/ColouredMsg.h>
 #include <GreenWallet/CommandImplementations.h>
@@ -19,8 +17,6 @@
 #include <GreenWallet/Tools.h>
 #include <GreenWallet/Types.h>
 #include <GreenWallet/WalletConfig.h>
-
-#define _GLIBCXX_USE_NANOSLEEP 1
 
 void checkForNewTransactions(std::shared_ptr<WalletInfo> walletInfo)
 {
@@ -30,10 +26,10 @@ void checkForNewTransactions(std::shared_ptr<WalletInfo> walletInfo)
 
     if (newTransactionCount != walletInfo->knownTransactionCount)
     {
-        for (size_t i = walletInfo->knownTransactionCount;
+        for (size_t i = walletInfo->knownTransactionCount; 
                     i < newTransactionCount; i++)
         {
-            const CryptoNote::WalletTransaction t
+            const CryptoNote::WalletTransaction t 
                 = walletInfo->wallet.getTransaction(i);
 
             /* Don't print outgoing or fusion transfers */
@@ -128,7 +124,7 @@ void syncWallet(CryptoNote::INode &node,
         remoteHeight = node.getLastKnownBlockHeight();
         std::cout << SuccessMsg(std::to_string(walletHeight))
                   << " of " << InformationMsg(std::to_string(localHeight))
-                  << "                                       \r" << std::flush;
+                  << "\r" << std::flush;
 
         const uint32_t tmpWalletHeight = walletInfo->wallet.getBlockCount();
 

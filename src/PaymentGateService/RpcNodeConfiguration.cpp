@@ -17,30 +17,29 @@
 // along with luckycoin.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "RpcNodeConfiguration.h"
-#include "CryptoNoteConfig.h"
 
 namespace PaymentService {
 
 namespace po = boost::program_options;
 
 RpcNodeConfiguration::RpcNodeConfiguration() {
-  m_daemon_host = "";
-  m_daemon_port = 0;
+  daemonHost = "";
+  daemonPort = 0;
 }
 
 void RpcNodeConfiguration::initOptions(boost::program_options::options_description& desc) {
   desc.add_options()
     ("daemon-address", po::value<std::string>()->default_value("127.0.0.1"), "daemon address")
-    ("daemon-port", po::value<uint16_t>()->default_value((uint16_t) CryptoNote::RPC_DEFAULT_PORT), "daemon port");
+    ("daemon-port", po::value<uint16_t>()->default_value(32348), "daemon port");
 }
 
 void RpcNodeConfiguration::init(const boost::program_options::variables_map& options) {
-  if (options.count("daemon-address") != 0 && (!options["daemon-address"].defaulted() || m_daemon_host.empty())) {
-    m_daemon_host = options["daemon-address"].as<std::string>();
+  if (options.count("daemon-address") != 0 && (!options["daemon-address"].defaulted() || daemonHost.empty())) {
+    daemonHost = options["daemon-address"].as<std::string>();
   }
 
-  if (options.count("daemon-port") != 0 && (!options["daemon-port"].defaulted() || m_daemon_port == 0)) {
-    m_daemon_port = options["daemon-port"].as<uint16_t>();
+  if (options.count("daemon-port") != 0 && (!options["daemon-port"].defaulted() || daemonPort == 0)) {
+    daemonPort = options["daemon-port"].as<uint16_t>();
   }
 }
 

@@ -101,9 +101,6 @@ public:
 
   virtual std::string getReserveProof(const uint64_t &reserve, const std::string& address, const std::string &message) override;
 
-  virtual std::string signMessage(const std::string &message, const std::string& address) override;
-  virtual bool verifyMessage(const std::string &message, const std::string& address, const std::string &signature) override;
-
   virtual size_t transfer(const TransactionParameters& sendingTransaction, Crypto::SecretKey& txSecretKey) override;
 
   virtual size_t makeTransaction(const TransactionParameters& sendingTransaction) override;
@@ -158,9 +155,7 @@ protected:
   std::vector<std::string> doCreateAddressList(const std::vector<NewAddressData>& addressDataList);
 
   CryptoNote::BlockDetails getBlock(const uint32_t blockHeight);
-  Crypto::SecretKey getTransactionDeterministicSecretKey(Crypto::Hash& transactionHash) const;
 
-  uint64_t getBlockTimestamp(const uint32_t blockHeight);
   uint64_t scanHeightToTimestamp(const uint32_t scanHeight);
   uint64_t getCurrentTimestampAdjusted();
 

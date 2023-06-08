@@ -20,10 +20,9 @@
 
 #include <cstdint>
 #include <list>
-#include <memory>
-#include <system_error>
 #include <utility>
 #include <vector>
+#include <system_error>
 
 #include <CryptoNote.h>
 #include "CryptoNoteCore/Difficulty.h"
@@ -61,7 +60,6 @@ public:
   virtual bool removeObserver(ICoreObserver* observer) = 0;
 
   virtual bool have_block(const Crypto::Hash& id) = 0;
-  virtual bool haveTransaction(const Crypto::Hash& id) = 0;
   virtual std::vector<Crypto::Hash> buildSparseChain() = 0;
   virtual std::vector<Crypto::Hash> buildSparseChain(const Crypto::Hash& startBlockId) = 0;
   virtual bool get_stat_info(CryptoNote::core_stat_info& st_inf) = 0;
@@ -98,9 +96,7 @@ public:
   virtual Crypto::Hash getBlockIdByHeight(uint32_t height) = 0;
   virtual bool getBlockByHash(const Crypto::Hash &h, Block &blk) = 0;
   virtual bool getBlockHeight(const Crypto::Hash& blockId, uint32_t& blockHeight) = 0;
-  virtual bool getTransactionHeight(const Crypto::Hash &txId, uint32_t& blockHeight) = 0;
   virtual void getTransactions(const std::vector<Crypto::Hash>& txs_ids, std::list<Transaction>& txs, std::list<Crypto::Hash>& missed_txs, bool checkTxPool = false) = 0;
-  virtual bool getTransactionsWithOutputGlobalIndexes(const std::vector<Crypto::Hash>& txs_ids, std::list<Crypto::Hash>& missed_txs, std::vector<std::pair<Transaction, std::vector<uint32_t>>>& txs) = 0;
   virtual bool getTransaction(const Crypto::Hash& id, Transaction& tx, bool checkTxPool = false) = 0;
   virtual bool getBackwardBlocksSizes(uint32_t fromHeight, std::vector<size_t>& sizes, size_t count) = 0;
   virtual bool getBlockSize(const Crypto::Hash& hash, size_t& size) = 0;
@@ -111,6 +107,8 @@ public:
   virtual bool getBlockDifficulty(uint32_t height, difficulty_type& difficulty) = 0;
   virtual bool getBlockCumulativeDifficulty(uint32_t height, difficulty_type& difficulty) = 0;
   virtual bool getBlockTimestamp(uint32_t height, uint64_t& timestamp) = 0;
+  virtual difficulty_type getAvgDifficulty(uint32_t height, size_t window) = 0;
+  virtual difficulty_type getAvgDifficulty(uint32_t height) = 0;
   virtual bool getBlockContainingTx(const Crypto::Hash& txId, Crypto::Hash& blockId, uint32_t& blockHeight) = 0;
   virtual bool getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<Crypto::Hash, size_t>& outputReference) = 0;
 
@@ -120,11 +118,11 @@ public:
   virtual bool getPoolTransactionsByTimestamp(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t transactionsNumberLimit, std::vector<Transaction>& transactions, uint64_t& transactionsNumberWithinTimestamps) = 0;
   virtual bool getTransactionsByPaymentId(const Crypto::Hash& paymentId, std::vector<Transaction>& transactions) = 0;
   virtual std::vector<Crypto::Hash> getTransactionHashesByPaymentId(const Crypto::Hash& paymentId) = 0;
-  virtual uint64_t getMinimalFee(uint32_t height) = 0;
+  virtual uint64_t getMinimalFeeForHeight(uint32_t height) = 0;
   virtual uint64_t getMinimalFee() = 0;
   virtual uint64_t getNextBlockDifficulty() = 0;
   virtual uint64_t getTotalGeneratedAmount() = 0;
-  virtual bool check_tx_fee(const Transaction& tx, const Crypto::Hash& txHash, size_t blobSize, tx_verification_context& tvc, uint32_t height) = 0;
+  virtual bool check_tx_fee(const Transaction& tx, size_t blobSize, tx_verification_context& tvc, uint32_t height) = 0;
   virtual size_t getPoolTransactionsCount() = 0;
   virtual size_t getBlockchainTotalTransactions() = 0;
   virtual uint32_t getCurrentBlockchainHeight() = 0;
@@ -142,9 +140,6 @@ public:
 
   virtual void rollbackBlockchain(const uint32_t height) = 0;
   virtual bool saveBlockchain() = 0;
-
-  virtual bool getBlockLongHash(Crypto::cn_context &context, const Block& b, Crypto::Hash& res) = 0;
-
   virtual bool getMixin(const Transaction& transaction, uint64_t& mixin) = 0;
   virtual bool isInCheckpointZone(uint32_t height) const = 0;
 };

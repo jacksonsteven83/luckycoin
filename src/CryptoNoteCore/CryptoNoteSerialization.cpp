@@ -276,10 +276,6 @@ void serialize(MultisignatureInput& multisignature, ISerializer& serializer) {
   serializer(multisignature.outputIndex, "outputIndex");
 }
 
-void serialize(TransactionInputs & inputs, ISerializer & serializer) {
-  serializer(inputs, "vin");
-}
-
 void serialize(TransactionOutput& output, ISerializer& serializer) {
   serializer(output.amount, "amount");
   serializer(output.target, "target");
@@ -384,7 +380,7 @@ void serialize(ParentBlockSerializer& pbs, ISerializer& serializer) {
 
 void serializeBlockHeader(BlockHeader& header, ISerializer& serializer) {
   serializer(header.majorVersion, "major_version");
-  if (header.majorVersion > BLOCK_MAJOR_VERSION_6) {
+  if (header.majorVersion > BLOCK_MAJOR_VERSION_5) {
     throw std::runtime_error("Wrong major version");
   }
 
@@ -408,10 +404,6 @@ void serialize(BlockHeader& header, ISerializer& serializer) {
 
 void serialize(Block& block, ISerializer& serializer) {
   serializeBlockHeader(block, serializer);
-
-  if (block.majorVersion >= BLOCK_MAJOR_VERSION_5) {
-    serializer(block.signature, "signature");
-  }
 
   if (block.majorVersion == BLOCK_MAJOR_VERSION_2 || block.majorVersion == BLOCK_MAJOR_VERSION_3) {
     auto parentBlockSerializer = makeParentBlockSerializer(block, false, false);

@@ -360,25 +360,13 @@ std::string timeIntervalToString(uint64_t intervalInSeconds) {
   auto seconds = tail;
 
   std::stringstream ss;
-  ss << std::setfill('0')
-     << std::setw(2) << days << "d "
-     << std::setw(2) << hours << "h "
-     << std::setw(2) << minutes << "m "
-     << std::setw(2) << seconds << "s";
+  ss << "d" << days <<
+    std::setfill('0') <<
+    ".h" << std::setw(2) << hours <<
+    ".m" << std::setw(2) << minutes <<
+    ".s" << std::setw(2) << seconds;
 
   return ss.str();
-}
-
-bool starts_with(const std::string &str1, const std::string &str2) {
-  if (str1.length() < str2.length())
-    return false;
-  return str1.compare(0, str2.length(), str2) == 0;
-}
-
-bool ends_with(const std::string &str1, const std::string &str2) {
-  if (str1.length() < str2.length())
-    return false;
-  return str1.compare(str1.length() - str2.length(), str2.length(), str2) == 0;
 }
 
 }

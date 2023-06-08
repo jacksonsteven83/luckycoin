@@ -65,7 +65,3 @@ void reserveProof(std::shared_ptr<WalletInfo> walletInfo, bool viewWallet);
 void txSecretKey(CryptoNote::WalletGreen &wallet);
 
 void txProof(CryptoNote::WalletGreen &wallet);
-
-void signMessage(std::shared_ptr<WalletInfo> walletInfo, bool viewWallet);
-
-void verifyMessage(CryptoNote::WalletGreen &wallet);

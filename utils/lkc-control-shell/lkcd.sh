@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2016-2018, luckycoin developers (Aiwe, Lastick)
+# Copyright (c) 2016-2018, luckycoin developers
 # English correction by Grabbers
 #
 # All rights reserved
@@ -42,12 +42,8 @@ LKCD_P2P_IP="0.0.0.0"
 LKCD_P2P_PORT="32347"
 LKCD_RPC_IP="127.0.0.1"
 LKCD_RPC_PORT="32348"
-LKCD_RPC_SSL_PORT="32448"
-LKCD_RPC_CHAIN_PATH="/var/luckycoin/rpc_server.crt"
-LKCD_RPC_KEY_PATH="/var/luckycoin/rpc_server.key"
 LKCD_LOG_LEVEL="2"
 LKCD_FEE_ADDRESS="Ke5tURH8PotZfvk3B444EtEu29PwtjTND4SBmw1NL7gd9gZ6y78F9cz4ZKepay2o2uH4HXu4poTUeJ4FyQMiaTukLKgrpLS"
-LKCD_FEE_AMOUNT="0.1"
 LKCD_VIEW_KEY=""
 
 LKCS_CONTROL="/usr/lib/luckycoin/lkcs.sh"

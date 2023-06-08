@@ -11,27 +11,12 @@ on:
 jobs:
   build-windows:
     name: Windows
-    runs-on: windows-2019
-    env:
-      BOOST_ROOT: C:\thirdparties\boost-1.72.0
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
 
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.1
-
-      - name: Install OpenSSL
-        run: choco install openssl
-
-      - name: Install Boost
-        shell: powershell
-        run: |
-          $Url = "https://sourceforge.net/projects/boost/files/boost-binaries/1.72.0/boost_1_72_0-msvc-14.2-64.exe"
-          (New-Object System.Net.WebClient).DownloadFile($Url, "$env:TEMP\boost-installer.exe")
-          Start-Process -Wait -FilePath "$env:TEMP\boost-installer.exe" "/SILENT","/SP-","/SUPPRESSMSGBOXES","/DIR=$env:BOOST_ROOT"
+      - name: Setup MSBuild.exe
+        uses: warrenbuckley/Setup-MSBuild@v1
 
       - name: Build
         shell: powershell
@@ -39,106 +24,49 @@ jobs:
         run: |
           $build_folder = "build"
           $sha = "${{ github.sha }}"
-          $lkc_ver = $sha.SubString(0,7)
-          $release_name = "lucky-cli-win64-$lkc_ver"
+          $krb_ver = $sha.SubString(0,7)
+          $release_name = "karbo-cli-win64-$krb_ver"
           mkdir "$build_folder"
           cd "$build_folder"
-          cmake -G "Visual Studio 16 2019" -A x64 -DBOOST_ROOT="$env:BOOST_ROOT" -DBOOST_INCLUDE_DIRS="$env:BOOST_ROOT/include" ..
-          msbuild luckycoin.sln /p:Configuration=Release /m
+          cmake -G "Visual Studio 16 2019" -A x64 ..
+          msbuild Karbowanec.sln /p:Configuration=Release /m
           cd src\Release
           Compress-Archive -Path *.exe -DestinationPath "$release_name.zip"
           $sha256 = (Get-FileHash "$release_name.zip").Hash
           $asset_path = "./$build_folder/src/Release/$release_name.zip"
           mkdir "$release_name"
           cp *.exe "$release_name/"
-          echo "sha256=${sha256}" >> $env:GITHUB_OUTPUT
-          echo "release_name=${release_name}.zip" >> $env:GITHUB_OUTPUT
-          echo "asset_path=${asset_path}" >> $env:GITHUB_OUTPUT
-          echo "lkc_ver=${lkc_ver}" >> $env:GITHUB_OUTPUT
-          echo "artifact_path=$build_folder/src/Release/$release_name" >> $env:GITHUB_OUTPUT
+          echo "::set-output name=sha256::${sha256}"
+          echo "::set-output name=release_name::${release_name}.zip"
+          echo "::set-output name=asset_path::${asset_path}"
+          echo "::set-output name=krb_ver::${krb_ver}"
+          echo "::set-output name=artifact_path::$build_folder/src/Release/$release_name"
 
       - name: Upload To GH Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v1.0.0
         with:
           name: ${{ steps.build.outputs.release_name }}
           path: ${{ steps.build.outputs.artifact_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-mingw:
-    name: MinGW
-    runs-on: windows-2019
-    steps:
-      - uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: >-
-            git
-            base-devel
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-boost
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-openssl
-
-      - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - name: Prepare version
-        shell: powershell
-        id: setup
-        run: |
-          $lkc_ver="${{ github.sha }}".SubString(0,7)
-          $release_name="lucky-cli-win64-mingw-$lkc_ver"
-          echo "release_name=${release_name}" >> $env:GITHUB_OUTPUT
-      - name: Build
-        shell: msys2 {0}
-        id: build
-        run: |
-          ls
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DSTATIC=ON
-          cmake --build . --config Release
-      - name: Prepare release
-        shell: msys2 {0}
-        run: |
-          mkdir build/lucky
-          mv build/src/luckycoind.exe build/lucky
-          mv build/src/simplewallet.exe build/lucky
-          mv build/src/greenwallet.exe build/lucky
-          mv build/src/optimizer.exe build/lucky
-          mv build/src/walletd.exe build/lucky
-          mv build/src/vanitygen.exe build/lucky
-      - name: Upload To GH Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ steps.setup.outputs.release_name }}
-          path: build/lucky
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-macos:
     name: macOS
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
 
       - name: Build
         id: build
         run: |
           build_folder="build/"
-          lkc_ver=${GITHUB_SHA::7}
-          release_name="lucky-cli-macOS-$lkc_ver"
-          brew install --force openssl boost gcc
-          brew link openssl boost --force
+          krb_ver=${GITHUB_SHA::7}
+          release_name="Karbo-cli-macOS-$krb_ver"
+          brew install gcc boost@1.60
+          brew link boost@1.60 --force
           mkdir "$build_folder"
           cd "$build_folder"
-          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DOPENSSL_USE_STATIC_LIBS=ON ..
+          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" ..
           make
           mkdir "$release_name"
           exeFiles=()
@@ -148,86 +76,145 @@ jobs:
           zip -r "$release_name".zip "$release_name"
           sha256=$(shasum -a 256 "$release_name".zip | awk '{print toupper($1)}')
           asset_path="./$build_folder$release_name.zip"
-          echo "sha256=${sha256}" >> $GITHUB_OUTPUT
-          echo "release_name=${release_name}.zip" >> $GITHUB_OUTPUT
-          echo "asset_path=${asset_path}" >> $GITHUB_OUTPUT
-          echo "lkc_ver=${lkc_ver}" >> $GITHUB_OUTPUT
-          echo "artifact_path=$build_folder/$release_name" >> $GITHUB_OUTPUT
+          echo "::set-output name=sha256::${sha256}"
+          echo "::set-output name=release_name::${release_name}.zip"
+          echo "::set-output name=asset_path::${asset_path}"
+          echo "::set-output name=krb_ver::${krb_ver}"
+          echo "::set-output name=artifact_path::$build_folder/$release_name"
 
       - name: Upload To GH Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v1.0.0
         with:
           name: ${{ steps.build.outputs.release_name }}
           path: ${{ steps.build.outputs.artifact_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-ubuntu22:
-    name: Ubuntu 22.04
-    runs-on: ubuntu-22.04
+  build-ubuntu16:
+    name: Ubuntu 16.04
+    runs-on: ubuntu-16.04
     steps:
       - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
 
       - name: Build
         id: build
         run: |
-          sudo apt-get update && sudo apt-get install -y libboost-all-dev
+          BOOST_ROOT=
+          sudo apt install -y libboost-all-dev
           build_folder="build/release"
-          lkc_ver=${GITHUB_SHA::7}
-          release_name=lucky-cli-ubuntu22.04-"$lkc_ver"
+          krb_ver=${GITHUB_SHA::7}
+          krb_ver_folder=$(echo $krb_ver | sed 's/\.//g')
+          release_name=Karbo-cli-ubuntu16.04-"$krb_ver"
           mkdir -p "$build_folder"
           cd "$build_folder"
-          cmake -D ARCH=default -D CMAKE_BUILD_TYPE=Release -D CMAKE_POSITION_INDEPENDENT_CODE:BOOL=true -D BOOST_IGNORE_SYSTEM_PATHS_DEFAULT=ON -D BOOST_ROOT=/usr ../..
+          cmake -D CMAKE_BUILD_TYPE=Release ../..
           make
-          mkdir -p "$release_name"
+          mkdir -p "$release_name/$krb_ver_folder"
           exeFiles=()
           for f in src/*; do [[ -x $f && -f $f ]] && exeFiles+=( "$f" ); done
           strip "${exeFiles[@]}"
-          cp "${exeFiles[@]}" "$release_name/"
-          echo "release_name=${release_name}" >> $GITHUB_OUTPUT
-          echo "artifact_path=$build_folder/$release_name" >> $GITHUB_OUTPUT
+          cp "${exeFiles[@]}" "$release_name/$krb_ver_folder"
+          cd "$release_name"
+          tar -czf "$release_name".tar.gz "$krb_ver_folder"
+          sha256=$(shasum -a 256 "$release_name".tar.gz | awk '{print toupper($1)}')
+          asset_path="./$build_folder/$release_name/$release_name.tar.gz"
+          echo "::set-output name=sha256::${sha256}"
+          echo "::set-output name=release_name::${release_name}.tar.gz"
+          echo "::set-output name=asset_path::${asset_path}"
+          echo "::set-output name=krb_ver::${krb_ver}"
+          echo "::set-output name=artifact_path::$build_folder/$release_name/$krb_ver_folder"
 
       - name: Upload To GH Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v1.0.0
         with:
           name: ${{ steps.build.outputs.release_name }}
           path: ${{ steps.build.outputs.artifact_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-ubuntu20:
-    name: Ubuntu 20.04
-    runs-on: ubuntu-20.04
+  build-ubuntu18:
+    name: Ubuntu 18.04
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
 
       - name: Build
         id: build
         run: |
-          sudo apt-get update && sudo apt-get install -y libboost-all-dev
+          BOOST_ROOT=
+          sudo apt install -y libboost-all-dev
           build_folder="build/release"
-          lkc_ver=${GITHUB_SHA::7}
-          release_name=lucky-cli-ubuntu20.04-"$lkc_ver"
+          krb_ver=${GITHUB_SHA::7}
+          krb_ver_folder=$(echo $krb_ver | sed 's/\.//g')
+          release_name=Karbo-cli-ubuntu18.04-"$krb_ver"
           mkdir -p "$build_folder"
           cd "$build_folder"
-          cmake -D ARCH=default -D CMAKE_BUILD_TYPE=Release -D CMAKE_POSITION_INDEPENDENT_CODE:BOOL=true -D BOOST_IGNORE_SYSTEM_PATHS_DEFAULT=ON -D BOOST_ROOT=/usr ../..
+          cmake -D CMAKE_BUILD_TYPE=Release ../..
           make
-          mkdir -p "$release_name"
+          mkdir -p "$release_name/$krb_ver_folder"
           exeFiles=()
           for f in src/*; do [[ -x $f && -f $f ]] && exeFiles+=( "$f" ); done
           strip "${exeFiles[@]}"
-          cp "${exeFiles[@]}" "$release_name/"
-          echo "release_name=${release_name}" >> $GITHUB_OUTPUT
-          echo "artifact_path=$build_folder/$release_name" >> $GITHUB_OUTPUT
+          cp "${exeFiles[@]}" "$release_name/$krb_ver_folder"
+          cd "$release_name"
+          tar -czf "$release_name".tar.gz "$krb_ver_folder"
+          sha256=$(shasum -a 256 "$release_name".tar.gz | awk '{print toupper($1)}')
+          asset_path="./$build_folder/$release_name/$release_name.tar.gz"
+          echo "::set-output name=sha256::${sha256}"
+          echo "::set-output name=release_name::${release_name}.tar.gz"
+          echo "::set-output name=asset_path::${asset_path}"
+          echo "::set-output name=krb_ver::${krb_ver}"
+          echo "::set-output name=artifact_path::$build_folder/$release_name/$krb_ver_folder"
 
       - name: Upload To GH Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: ${{ steps.build.outputs.release_name }}
+          path: ${{ steps.build.outputs.artifact_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ubuntu18-clang:
+    name: Ubuntu 18.04 Clang 6
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Build
+        id: build
+
+        env:
+          CC: clang-6.0
+          CXX: clang++-6.0
+
+        run: |
+          BOOST_ROOT=
+          sudo apt install -y libboost-all-dev
+          build_folder="build/release"
+          krb_ver=${GITHUB_SHA::7}
+          krb_ver_folder=$(echo $krb_ver | sed 's/\.//g')
+          release_name=Karbo-cli-ubuntu18.04-clang-6-"$krb_ver"
+          mkdir -p "$build_folder"
+          cd "$build_folder"
+          cmake -D CMAKE_BUILD_TYPE=Release ../..
+          make
+          mkdir -p "$release_name/$krb_ver_folder"
+          exeFiles=()
+          for f in src/*; do [[ -x $f && -f $f ]] && exeFiles+=( "$f" ); done
+          strip "${exeFiles[@]}"
+          cp "${exeFiles[@]}" "$release_name/$krb_ver_folder"
+          cd "$release_name"
+          tar -czf "$release_name".tar.gz "$krb_ver_folder"
+          sha256=$(shasum -a 256 "$release_name".tar.gz | awk '{print toupper($1)}')
+          asset_path="./$build_folder/$release_name/$release_name.tar.gz"
+          echo "::set-output name=sha256::${sha256}"
+          echo "::set-output name=release_name::${release_name}.tar.gz"
+          echo "::set-output name=asset_path::${asset_path}"
+          echo "::set-output name=krb_ver::${krb_ver}"
+          echo "::set-output name=artifact_path::$build_folder/$release_name/$krb_ver_folder"
+
+      - name: Upload To GH Artifacts
+        uses: actions/upload-artifact@v1.0.0
         with:
           name: ${{ steps.build.outputs.release_name }}
           path: ${{ steps.build.outputs.artifact_path }}

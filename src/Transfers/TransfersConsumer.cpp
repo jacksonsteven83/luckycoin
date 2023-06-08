@@ -399,16 +399,6 @@ std::error_code TransfersConsumer::createTransfers(
   std::vector<PublicKey> temp_keys;
   std::lock_guard<std::mutex> lk(seen_mutex);
 
-  if (account.spendSecretKey == NULL_SECRET_KEY) {
-    KeyPair deterministic_tx_keys;
-    bool spending = generateDeterministicTransactionKeys(tx.getTransactionInputsHash(), account.viewSecretKey, deterministic_tx_keys)
-      && deterministic_tx_keys.publicKey == txPubKey;
-
-    if (spending) {
-      m_logger(WARNING, BRIGHT_YELLOW) << "Spending in tx " << Common::podToHex(tx.getTransactionHash());
-    }
-  }
-
   for (auto idx : outputs) {
 
     if (idx >= tx.getOutputCount()) {
@@ -472,7 +462,7 @@ std::error_code TransfersConsumer::createTransfers(
         if (it == transactions_hash_seen.end()) {
           std::unordered_set<Crypto::PublicKey>::iterator key_it = public_keys_seen.find(key);
           if (key_it != public_keys_seen.end()) {
-            m_logger(ERROR, BRIGHT_RED) << "Failed to process transaction " << Common::podToHex(txHash) << ": duplicate multisignature output key is found";
+			  m_logger(ERROR, BRIGHT_RED) << "Failed to process transaction " << Common::podToHex(txHash) << ": duplicate multisignature output key is found";
             return std::error_code();
           }
           if (std::find(temp_keys.begin(), temp_keys.end(), key) != temp_keys.end()) {
@@ -561,17 +551,17 @@ void TransfersConsumer::processTransaction(const TransactionBlockInfo& blockInfo
 void TransfersConsumer::processOutputs(const TransactionBlockInfo& blockInfo, TransfersSubscription& sub, const ITransactionReader& tx,
   const std::vector<TransactionOutputInformationIn>& transfers, const std::vector<uint32_t>& globalIdxs, bool& contains, bool& updated) {
 
-  TransactionInformation subscriptionTxInfo;
-  contains = sub.getContainer().getTransactionInformation(tx.getTransactionHash(), subscriptionTxInfo);
+  TransactionInformation subscribtionTxInfo;
+  contains = sub.getContainer().getTransactionInformation(tx.getTransactionHash(), subscribtionTxInfo);
   updated = false;
 
   if (contains) {
-    if (subscriptionTxInfo.blockHeight == WALLET_UNCONFIRMED_TRANSACTION_HEIGHT && blockInfo.height != WALLET_UNCONFIRMED_TRANSACTION_HEIGHT) {
+    if (subscribtionTxInfo.blockHeight == WALLET_UNCONFIRMED_TRANSACTION_HEIGHT && blockInfo.height != WALLET_UNCONFIRMED_TRANSACTION_HEIGHT) {
       // pool->blockchain
       sub.markTransactionConfirmed(blockInfo, tx.getTransactionHash(), globalIdxs);
       updated = true;
     } else {
-      assert(subscriptionTxInfo.blockHeight == blockInfo.height);
+      assert(subscribtionTxInfo.blockHeight == blockInfo.height);
     }
   } else {
     updated = sub.addTransaction(blockInfo, tx, transfers);

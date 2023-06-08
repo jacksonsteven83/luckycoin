@@ -123,7 +123,7 @@ void printPrivateKeys(CryptoNote::WalletGreen &wallet, bool viewWallet)
     {
         std::string mnemonicSeed;
 
-        Crypto::ElectrumWords::bytes_to_words(privateSpendKey,
+        Crypto::ElectrumWords::bytes_to_words(privateSpendKey, 
                                               mnemonicSeed,
                                               "English");
 
@@ -161,7 +161,7 @@ void balance(CryptoNote::INode &node, CryptoNote::WalletGreen &wallet,
 
     if (viewWallet)
     {
-        std::cout << std::endl
+        std::cout << std::endl 
                   << InformationMsg("Please note that view only wallets "
                                     "can only track incoming transactions,")
                   << std::endl
@@ -554,7 +554,7 @@ void printIncomingTransfer(CryptoNote::WalletTransaction t,
     std::cout << std::endl;
 }
 
-void listTransfers(bool incoming, bool outgoing,
+void listTransfers(bool incoming, bool outgoing, 
                    CryptoNote::WalletGreen &wallet, CryptoNote::INode &node)
 {
     const size_t numTransactions = wallet.getTransactionCount();
@@ -580,7 +580,7 @@ void listTransfers(bool incoming, bool outgoing,
 
     if (incoming)
     {
-        std::cout << SuccessMsg("Total received: "
+        std::cout << SuccessMsg("Total received: " 
                               + formatAmount(totalReceived))
                   << std::endl;
     }
@@ -650,19 +650,19 @@ void txSecretKey(CryptoNote::WalletGreen &wallet)
         if (std::cin.fail() || std::cin.eof()) {
             std::cin.clear();
             break;
-        }
+        }        
     }
 
     Crypto::SecretKey txSecretKey = wallet.getTransactionSecretKey(txid);
 
     if (txSecretKey == CryptoNote::NULL_SECRET_KEY) {
-        std::cout << WarningMsg("Transaction ")
+        std::cout << WarningMsg("Transaction ") 
                   << WarningMsg(hashStr)
                   << WarningMsg(" secret key is not available")
                   << std::endl;
         return;
     }
-
+		
     std::cout << SuccessMsg("Transaction secret key: ")
               << std::endl
               << SuccessMsg(Common::podToHex(txSecretKey))
@@ -694,7 +694,7 @@ void txProof(CryptoNote::WalletGreen &wallet)
             break;
         }
     }
-
+	  
     Crypto::SecretKey txSecretKey = wallet.getTransactionSecretKey(txid);
 
     if (txSecretKey == CryptoNote::NULL_SECRET_KEY) {
@@ -711,7 +711,7 @@ void txProof(CryptoNote::WalletGreen &wallet)
         while (true)
         {
             std::string keyStr;
-
+			
             std::getline(std::cin, keyStr);
             boost::algorithm::trim(keyStr);
 
@@ -724,7 +724,7 @@ void txProof(CryptoNote::WalletGreen &wallet)
                           << WarningMsg(keyStr) << std::endl;
                 return;
             }
-            else {
+            else {     
                 txSecretKey = *(struct Crypto::SecretKey *) &tx_key_hash;
 				break;
             }
@@ -742,8 +742,8 @@ void txProof(CryptoNote::WalletGreen &wallet)
     {
         std::cout << InformationMsg("Enter destination address: ");
 
-        std::string addrStr;
-        uint64_t prefix;
+		std::string addrStr;
+		uint64_t prefix;
 
         std::getline(std::cin, addrStr);
         boost::algorithm::trim(addrStr);
@@ -860,8 +860,8 @@ void reserveProof(std::shared_ptr<WalletInfo> walletInfo, bool viewWallet)
 
     try
     {
-        const std::string sig =
-            walletInfo->wallet.getReserveProof(amount,
+        const std::string sig = 
+            walletInfo->wallet.getReserveProof(amount, 
                                                walletInfo->walletAddress,
                                                message.empty() ? "" : message);
 
@@ -896,11 +896,11 @@ void reserveProof(std::shared_ptr<WalletInfo> walletInfo, bool viewWallet)
             boost::filesystem::remove(fileName, ec);
         }
 
-        std::ofstream proofFile(fileName,
-                                std::ios::out |
-                                std::ios::trunc |
+        std::ofstream proofFile(fileName, 
+                                std::ios::out | 
+                                std::ios::trunc | 
                                 std::ios::binary);
-
+          
         if (!proofFile.good())
         {
             std::cout << WarningMsg("Failed to save reserve proof to file")
@@ -910,152 +910,12 @@ void reserveProof(std::shared_ptr<WalletInfo> walletInfo, bool viewWallet)
 
         proofFile << sig;
 
-        std::cout << SuccessMsg("Proof signature saved to file: ")
+        std::cout << SuccessMsg("Proof signature saved to file: ") 
                   << SuccessMsg(fileName)
                   << std::endl;
     }
     catch (const std::exception &e) {
         std::cout << WarningMsg("Failed to get reserve proof: ")
-                  << WarningMsg(e.what())
-                  << std::endl;
-    }
-}
-
-void signMessage(std::shared_ptr<WalletInfo> walletInfo, bool viewWallet)
-{
-    if (viewWallet)
-    {
-        std::cout << WarningMsg("This is tracking wallet. ")
-                  << WarningMsg("The message can be signed ")
-                  << WarningMsg("only by a full wallet.")
-                  << std::endl;
-        return;
-    }
-
-    std::string message;
-
-    while (true)
-    {
-        std::cout << InformationMsg("Enter message to sign: ");
-
-        std::getline(std::cin, message);
-        boost::algorithm::trim(message);
-
-        if (!message.empty())
-        {
-          break;
-        }
-
-        if (std::cin.fail() || std::cin.eof()) {
-            std::cin.clear();
-            break;
-        }
-    }
-
-    try
-    {
-        std::string walletAddress = walletInfo->walletAddress;
-
-        std::string signature = walletInfo->wallet.signMessage(message, walletAddress);
-
-        std::cout << SuccessMsg("Signature: ")
-                  << InformationMsg(signature)
-                  << std::endl;
-    }
-    catch (const std::exception &e) {
-        std::cout << WarningMsg("Failed to sign message: ")
-                  << WarningMsg(e.what())
-                  << std::endl;
-    }
-}
-
-void verifyMessage(CryptoNote::WalletGreen &wallet)
-{
-    std::string addrStr;
-
-    while (true)
-    {
-        std::cout << InformationMsg("Enter address: ");
-
-        CryptoNote::AccountPublicAddress address;
-
-        uint64_t prefix;
-
-        std::getline(std::cin, addrStr);
-        boost::algorithm::trim(addrStr);
-
-        if (!CryptoNote::parseAccountAddressString(prefix, address, addrStr))
-        {
-            std::cout << WarningMsg("Failed to parse address") << std::endl;
-        }
-        else
-        {
-            break;
-        }
-
-        if (std::cin.fail() || std::cin.eof()) {
-            std::cin.clear();
-            break;
-        }
-    }
-
-    std::string message;
-
-    while (true)
-    {
-        std::cout << InformationMsg("Enter message: ");
-
-        std::getline(std::cin, message);
-        boost::algorithm::trim(message);
-
-        if (!message.empty())
-        {
-            break;
-        }
-
-        if (std::cin.fail() || std::cin.eof()) {
-            std::cin.clear();
-            break;
-        }
-    }
-
-    std::string signature;
-
-    while (true)
-    {
-        std::cout << InformationMsg("Enter signature: ");
-
-        std::getline(std::cin, signature);
-        boost::algorithm::trim(signature);
-
-        if (!signature.empty())
-        {
-            break;
-        }
-
-        if (std::cin.fail() || std::cin.eof()) {
-            std::cin.clear();
-            break;
-        }
-    }
-
-    try
-    {
-        bool r = wallet.verifyMessage(message, addrStr, signature);
-
-        if (r)
-        {
-            std::cout << SuccessMsg("Signature is valid")
-                      << std::endl;
-        }
-        else
-        {
-            std::cout << WarningMsg("Signature is invalid")
-                      << std::endl;
-        }
-    }
-    catch (const std::exception &e) {
-        std::cout << WarningMsg("Failed to verify message: ")
                   << WarningMsg(e.what())
                   << std::endl;
     }

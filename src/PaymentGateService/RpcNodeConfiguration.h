@@ -30,8 +30,8 @@ public:
   static void initOptions(boost::program_options::options_description& desc);
   void init(const boost::program_options::variables_map& options);
 
-  std::string m_daemon_host;
-  uint16_t m_daemon_port;
+  std::string daemonHost;
+  uint16_t daemonPort;
 };
 
 } //namespace PaymentService

@@ -45,18 +45,13 @@ struct Configuration {
   void init(const boost::program_options::variables_map& options);
   static void initOptions(boost::program_options::options_description& desc);
 
-  std::string m_bind_address;
-  uint16_t m_bind_port;
-  uint16_t m_bind_port_ssl;
+  std::string bindAddress;
+  uint16_t bindPort;
   std::string m_rpcUser;
   std::string m_rpcPassword;
-  bool m_enable_ssl;
-  std::string m_chain_file;
-  std::string m_key_file;
 
   std::string containerFile;
   std::string containerPassword;
-  std::string newContainerPassword;
   std::string logFile;
   std::string serverRoot;
   std::string secretViewKey;
@@ -64,7 +59,6 @@ struct Configuration {
   std::string mnemonicSeed;
 
   bool generateNewContainer;
-  bool changePassword;
   bool generateDeterministic;
   bool daemonize;
   bool registerService;
@@ -73,8 +67,6 @@ struct Configuration {
   bool printAddresses;
 
   size_t logLevel;
-
-  uint32_t scanHeight;
 };
 
 } //namespace PaymentService

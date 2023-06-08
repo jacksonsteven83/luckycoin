@@ -58,12 +58,10 @@ struct TransactionOutput {
   TransactionOutputTarget target;
 };
 
-using TransactionInputs = std::vector<TransactionInput>;
-
 struct TransactionPrefix {
   uint8_t version;
   uint64_t unlockTime;
-  TransactionInputs inputs;
+  std::vector<TransactionInput> inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
 };
@@ -98,7 +96,6 @@ struct BlockHeader {
 struct Block : public BlockHeader {
   ParentBlock parentBlock;
   Transaction baseTransaction;
-  Crypto::Signature signature;
   std::vector<Crypto::Hash> transactionHashes;
 };
 

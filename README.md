@@ -2,14 +2,13 @@
 
 ### On *nix
 
-Dependencies: GCC 4.7.3 or later, CMake 2.8.6 or later, and Boost 1.55 or later, OpenSSL.
+Dependencies: GCC 4.7.3 or later, CMake 2.8.6 or later, and Boost 1.55 or later.
 
 You may download them from:
 
-- https://gcc.gnu.org/
-- https://www.cmake.org/
-- https://www.boost.org/
-- https://www.openssl.org/
+- http://gcc.gnu.org/
+- http://www.cmake.org/
+- http://www.boost.org/
 
 Alternatively, it may be possible to install them using a package manager.
 
@@ -20,7 +19,7 @@ or
 Run these commands:
 ```
 cd ~
-sudo apt-get install build-essential git cmake libboost-all-dev libssl-dev
+sudo apt-get install build-essential git cmake libboost-all-dev
 git clone https://github.com/jacksonsteven83/luckycoin.git
 cd luckycoin
 mkdir build
@@ -40,15 +39,13 @@ The resulting executables can be found in `build/release/src`.
 * Building with Clang: it may be possible to use Clang instead of GCC, but this may not work everywhere. To build, run `export CC=clang CXX=clang++` before running `make`.
 
 ### On Windows
+Dependencies: MSVC 2013 or later, CMake 2.8.6 or later, and Boost 1.55. You may download them from:
 
-Dependencies: MSVC 2013 or later, CMake 2.8.6 or later, Boost 1.55 or later, OpenSSL. You may download them from:
+* http://www.microsoft.com/
+* http://www.cmake.org/
+* http://www.boost.org/
 
-* https://www.microsoft.com/
-* https://www.cmake.org/
-* https://www.boost.org/
-* https://slproweb.com/products/Win32OpenSSL.html
-
-To build, change to a directory where this file is located, and run these commands: 
+To build, change to a directory where this file is located, and run theas commands: 
 ```
 mkdir build
 cd build

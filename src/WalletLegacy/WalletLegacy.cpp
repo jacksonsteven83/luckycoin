@@ -145,7 +145,6 @@ WalletLegacy::WalletLegacy(const CryptoNote::Currency& currency, INode& node, Lo
   m_isStopping(false),
   m_lastNotifiedActualBalance(0),
   m_lastNotifiedPendingBalance(0),
-  m_lastNotifiedUnmixableBalance(0),
   m_blockchainSync(node, m_logger.getLogger(), currency.genesisBlockHash()),
   m_transfersSync(currency, m_logger.getLogger(), m_blockchainSync, node),
   m_transferDetails(nullptr),
@@ -181,7 +180,7 @@ void WalletLegacy::removeObserver(IWalletLegacyObserver* observer) {
   m_observerManager.remove(observer);
 }
 
-void WalletLegacy::initAndGenerateNonDeterministic(const std::string& password) {
+void WalletLegacy::initAndGenerate(const std::string& password) {
   {
     std::unique_lock<std::mutex> stateLock(m_cacheMutex);
 
@@ -347,7 +346,7 @@ void WalletLegacy::initSync() {
   m_transferDetails = &subObject.getContainer();
   subObject.addObserver(this);
 
-  m_sender.reset(new WalletTransactionSender(m_currency, m_transactionsCache, m_account.getAccountKeys(), *m_transferDetails, m_node));
+  m_sender.reset(new WalletTransactionSender(m_currency, m_transactionsCache, m_account.getAccountKeys(), *m_transferDetails));
   m_state = INITIALIZED;
   
   m_blockchainSync.addObserver(this);
@@ -438,7 +437,6 @@ void WalletLegacy::shutdown() {
     m_transactionsCache.reset();
     m_lastNotifiedActualBalance = 0;
     m_lastNotifiedPendingBalance = 0;
-    m_lastNotifiedUnmixableBalance = 0;
   }
 }
 
@@ -554,11 +552,34 @@ std::string WalletLegacy::getAddress() {
 }
 
 std::string WalletLegacy::sign_message(const std::string &message) {
-  return CryptoNote::signMessage(message, m_account.getAccountKeys());
+  Crypto::Hash hash;
+  Crypto::cn_fast_hash(message.data(), message.size(), hash);
+  const CryptoNote::AccountKeys &keys = m_account.getAccountKeys();
+  Crypto::Signature signature;
+  Crypto::generate_signature(hash, keys.address.spendPublicKey, keys.spendSecretKey, signature);
+  return std::string("SigV1") + Tools::Base58::encode(std::string((const char *)&signature, sizeof(signature)));
 }
 
 bool WalletLegacy::verify_message(const std::string &message, const CryptoNote::AccountPublicAddress &address, const std::string &signature) {
-  return CryptoNote::verifyMessage(message, address, signature, m_logger.getLogger());
+  const size_t header_len = strlen("SigV1");
+  if (signature.size() < header_len || signature.substr(0, header_len) != "SigV1") {
+    m_logger(Logging::ERROR) << "Signature header check error";
+    return false;
+  }
+  Crypto::Hash hash;
+  Crypto::cn_fast_hash(message.data(), message.size(), hash);
+  std::string decoded;
+  if (!Tools::Base58::decode(signature.substr(header_len), decoded)) {
+    m_logger(Logging::ERROR) << "Signature decoding error";
+    return false;
+  }
+  Crypto::Signature s;
+  if (sizeof(s) != decoded.size()) {
+    m_logger(Logging::ERROR) << "Signature decoding error";
+    return false;
+  }
+  memcpy(&s, decoded.data(), sizeof(s));
+  return Crypto::check_signature(hash, address.spendPublicKey, s);
 }
 
 std::vector<Payments> WalletLegacy::getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const {
@@ -582,24 +603,24 @@ uint64_t WalletLegacy::pendingBalance() {
 }
 
 uint64_t WalletLegacy::unmixableBalance() {
-  std::unique_lock<std::mutex> lock(m_cacheMutex);
-  throwIfNotInitialised();
+	std::unique_lock<std::mutex> lock(m_cacheMutex);
+	throwIfNotInitialised();
 
-  std::vector<TransactionOutputInformation> outputs;
-  m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeKeyUnlocked);
+	std::vector<TransactionOutputInformation> outputs;
+	m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeKeyUnlocked);
 
-  uint64_t money = 0;
+	uint64_t money = 0;
+	
+	for (size_t i = 0; i < outputs.size(); ++i) {
+		const auto& out = outputs[i];
+		if (!m_transactionsCache.isUsed(out)) {
+			if (!is_valid_decomposed_amount(out.amount)) {
+				money += out.amount;
+			}
+		}
+	}
 
-  for (size_t i = 0; i < outputs.size(); ++i) {
-    const auto& out = outputs[i];
-    if (!m_transactionsCache.isUsed(out)) {
-      if (!is_valid_decomposed_amount(out.amount)) {
-        money += out.amount;
-      }
-    }
-  }
-
-  return money;
+	return money;
 }
 
 size_t WalletLegacy::getTransactionCount() {
@@ -641,28 +662,6 @@ size_t WalletLegacy::getUnlockedOutputsCount() {
   std::vector<TransactionOutputInformation> outputs;
   m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeKeyUnlocked);
   return outputs.size();
-}
-
-std::vector<TransactionOutputInformation> WalletLegacy::getOutputs() {
-  std::vector<TransactionOutputInformation> outputs;
-  m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeAll);
-  return outputs;
-}
-
-std::vector<TransactionOutputInformation> WalletLegacy::getLockedOutputs() {
-  std::vector<TransactionOutputInformation> outputs;
-  m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeAllLocked);
-  return outputs;
-}
-
-std::vector<TransactionOutputInformation> WalletLegacy::getUnlockedOutputs() {
-  std::vector<TransactionOutputInformation> outputs;
-  m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeAllUnlocked);
-  return outputs;
-}
-
-std::vector<TransactionSpentOutputInformation> WalletLegacy::getSpentOutputs() {
-  return m_transferDetails->getSpentOutputs();
 }
 
 size_t WalletLegacy::estimateFusion(const uint64_t& threshold) {
@@ -769,11 +768,9 @@ TransactionId WalletLegacy::sendTransaction(const std::vector<WalletLegacyTransf
   std::deque<std::shared_ptr<WalletLegacyEvent>> events;
   throwIfNotInitialised();
 
-  std::list<CryptoNote::TransactionOutputInformation> _selectedOuts = {};
-
   {
     std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->makeSendRequest(txId, events, transfers, _selectedOuts, fee, extra, mixIn, unlockTimestamp);
+    request = m_sender->makeSendRequest(txId, events, transfers, fee, extra, mixIn, unlockTimestamp);
   }
 
   notifyClients(events);
@@ -784,69 +781,6 @@ TransactionId WalletLegacy::sendTransaction(const std::vector<WalletLegacyTransf
   }
 
   return txId;
-}
-
-TransactionId WalletLegacy::sendTransaction(const std::vector<WalletLegacyTransfer>& transfers, const std::list<TransactionOutputInformation>& selectedOuts, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
-  TransactionId txId = 0;
-  std::shared_ptr<WalletRequest> request;
-  std::deque<std::shared_ptr<WalletLegacyEvent>> events;
-  throwIfNotInitialised();
-
-  {
-    std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->makeSendRequest(txId, events, transfers, selectedOuts, fee, extra, mixIn, unlockTimestamp);
-  }
-
-  notifyClients(events);
-
-  if (request) {
-    m_asyncContextCounter.addAsyncContext();
-    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
-  }
-
-  return txId;
-}
-
-std::string WalletLegacy::prepareRawTransaction(TransactionId& transactionId, const std::vector<WalletLegacyTransfer>& transfers, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
-  std::deque<std::shared_ptr<WalletLegacyEvent>> events;
-  throwIfNotInitialised();
-
-  std::list<CryptoNote::TransactionOutputInformation> _selectedOuts = {};
-
-  std::string tx_as_hex;
-
-  {
-    std::unique_lock<std::mutex> lock(m_cacheMutex);
-    tx_as_hex = m_sender->makeRawTransaction(transactionId, events, transfers, _selectedOuts, fee, extra, mixIn, unlockTimestamp);
-  }
-
-  notifyClients(events);
-
-  return tx_as_hex;
-}
-
-std::string WalletLegacy::prepareRawTransaction(TransactionId& transactionId, const std::vector<WalletLegacyTransfer>& transfers, const std::list<CryptoNote::TransactionOutputInformation>& selectedOuts, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
-  std::deque<std::shared_ptr<WalletLegacyEvent>> events;
-  throwIfNotInitialised();
-
-  std::string tx_as_hex;
-
-  {
-    std::unique_lock<std::mutex> lock(m_cacheMutex);
-    tx_as_hex = m_sender->makeRawTransaction(transactionId, events, transfers, selectedOuts, fee, extra, mixIn, unlockTimestamp);
-  }
-
-  notifyClients(events);
-
-  return tx_as_hex;
-}
-
-std::string WalletLegacy::prepareRawTransaction(TransactionId& transactionId, const WalletLegacyTransfer& transfer, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
-  std::vector<WalletLegacyTransfer> transfers;
-  transfers.push_back(transfer);
-  throwIfNotInitialised();
-
-  return prepareRawTransaction(transactionId, transfers, fee, extra, mixIn, unlockTimestamp);
 }
 
 TransactionId WalletLegacy::sendFusionTransaction(const std::list<TransactionOutputInformation>& fusionInputs, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
@@ -1038,41 +972,16 @@ std::vector<TransactionId> WalletLegacy::deleteOutdatedUnconfirmedTransactions()
   return m_transactionsCache.deleteOutdatedTransactions();
 }
 
-/* Returns either deterministic key or stored in wallet cache
- * (returns null key if is absent in cache).
- * In order to generate deterministic key raw transaction is 
- * requested from Node.
- */
 Crypto::SecretKey WalletLegacy::getTxKey(Crypto::Hash& txid) {
   TransactionId ti = m_transactionsCache.findTransactionByHash(txid);
   WalletLegacyTransaction transaction;
   getTransaction(ti, transaction);
-  if (transaction.secretKey && NULL_SECRET_KEY != reinterpret_cast<const Crypto::SecretKey&>(transaction.secretKey.get())) {
-    return reinterpret_cast<const Crypto::SecretKey&>(transaction.secretKey.get());
+  if (transaction.secretKey) {
+     return reinterpret_cast<const Crypto::SecretKey&>(transaction.secretKey.get());
   } else {
-    auto getTransactionCompleted = std::promise<std::error_code>();
-    auto getTransactionWaitFuture = getTransactionCompleted.get_future();
-    CryptoNote::Transaction tx;
-    m_node.getTransaction(std::move(txid), std::ref(tx),
-      [&getTransactionCompleted](std::error_code ec) {
-      auto detachedPromise = std::move(getTransactionCompleted);
-      detachedPromise.set_value(ec);
-    });
-    std::error_code ec = getTransactionWaitFuture.get();
-    if (ec) {
-      m_logger(ERROR) << "Failed to get tx: " << ec << ", " << ec.message();
-      return reinterpret_cast<const Crypto::SecretKey&>(transaction.secretKey.get());
-    }
-
-    Crypto::PublicKey txPubKey = getTransactionPublicKeyFromExtra(tx.extra);
-    KeyPair deterministicTxKeys;
-    bool ok = generateDeterministicTransactionKeys(tx, m_account.getAccountKeys().viewSecretKey, deterministicTxKeys)
-      && deterministicTxKeys.publicKey == txPubKey;
-
-    return ok ? deterministicTxKeys.secretKey : reinterpret_cast<const Crypto::SecretKey&>(transaction.secretKey.get());
+     return NULL_SECRET_KEY;
   }
 }
-
 bool WalletLegacy::get_tx_key(Crypto::Hash& txid, Crypto::SecretKey& txSecretKey) {
   TransactionId ti = m_transactionsCache.findTransactionByHash(txid);
   WalletLegacyTransaction transaction;
@@ -1087,7 +996,26 @@ bool WalletLegacy::get_tx_key(Crypto::Hash& txid, Crypto::SecretKey& txSecretKey
 }
 
 bool WalletLegacy::getTxProof(Crypto::Hash& txid, CryptoNote::AccountPublicAddress& address, Crypto::SecretKey& tx_key, std::string& sig_str) {
-  return getTransactionProof(txid, address, tx_key, sig_str, m_logger.getLogger());
+  Crypto::KeyImage p = *reinterpret_cast<Crypto::KeyImage*>(&address.viewPublicKey);
+  Crypto::KeyImage k = *reinterpret_cast<Crypto::KeyImage*>(&tx_key);
+  Crypto::KeyImage pk = Crypto::scalarmultKey(p, k);
+  Crypto::PublicKey R;
+  Crypto::PublicKey rA = reinterpret_cast<const PublicKey&>(pk);
+  Crypto::secret_key_to_public_key(tx_key, R);
+  Crypto::Signature sig;
+  try {
+    Crypto::generate_tx_proof(txid, R, address.viewPublicKey, rA, tx_key, sig);
+  }
+  catch (const std::runtime_error &e) {
+    m_logger(Logging::ERROR) << "Proof generation error: " << *e.what();
+    return false;
+  }
+
+  sig_str = std::string("ProofV1") +
+    Tools::Base58::encode(std::string((const char *)&rA, sizeof(Crypto::PublicKey))) +
+    Tools::Base58::encode(std::string((const char *)&sig, sizeof(Crypto::Signature)));
+
+  return true;
 }
 
 bool compareTransactionOutputInformationByAmount(const TransactionOutputInformation &a, const TransactionOutputInformation &b) {
@@ -1095,44 +1023,122 @@ bool compareTransactionOutputInformationByAmount(const TransactionOutputInformat
 }
 
 std::string WalletLegacy::getReserveProof(const uint64_t &reserve, const std::string &message) {
-  const CryptoNote::AccountKeys keys = m_account.getAccountKeys();
+	const CryptoNote::AccountKeys keys = m_account.getAccountKeys();
+	Crypto::SecretKey viewSecretKey = keys.viewSecretKey;
 
-  if (keys.spendSecretKey == NULL_SECRET_KEY) {
-    throw std::runtime_error("Reserve proof can only be generated by a full wallet");
-  }
+	if (keys.spendSecretKey == NULL_SECRET_KEY) {
+		throw std::runtime_error("Reserve proof can only be generated by a full wallet");
+	}
 
-  if (actualBalance() == 0) {
-    throw std::runtime_error("Zero balance");
-  }
+	if (actualBalance() == 0) {
+		throw std::runtime_error("Zero balance");
+	}
 
-  if (actualBalance() < reserve) {
-    throw std::runtime_error("Not enough balance for the requested minimum reserve amount");
-  }
+	if (actualBalance() < reserve) {
+		throw std::runtime_error("Not enough balance for the requested minimum reserve amount");
+	}
 
-  // determine which outputs to include in the proof
-  std::vector<TransactionOutputInformation> selected_transfers;
-  m_transferDetails->getOutputs(selected_transfers, ITransfersContainer::IncludeAllUnlocked);
+	// determine which outputs to include in the proof
+	std::vector<TransactionOutputInformation> selected_transfers;
+	m_transferDetails->getOutputs(selected_transfers, ITransfersContainer::IncludeAllUnlocked);
+	
+	// minimize the number of outputs included in the proof, by only picking the N largest outputs that can cover the requested min reserve amount
+	std::sort(selected_transfers.begin(), selected_transfers.end(), compareTransactionOutputInformationByAmount);
+	while (selected_transfers.size() >= 2 && selected_transfers[1].amount >= reserve)
+		selected_transfers.erase(selected_transfers.begin());
+	size_t sz = 0;
+	uint64_t total = 0;
+	while (total < reserve) {
+		total += selected_transfers[sz].amount;
+		++sz;
+	}
+	selected_transfers.resize(sz);
+	
+	// compute signature prefix hash
+	std::string prefix_data = message;
+	prefix_data.append((const char*)&keys.address, sizeof(CryptoNote::AccountPublicAddress));
+	
+	std::vector<Crypto::KeyImage> kimages;
+	CryptoNote::KeyPair ephemeral;
 
-  // minimize the number of outputs included in the proof, by only picking the N largest outputs that can cover the requested min reserve amount
-  std::sort(selected_transfers.begin(), selected_transfers.end(), compareTransactionOutputInformationByAmount);
-  std::reverse(selected_transfers.begin(), selected_transfers.end());
-  while (selected_transfers.size() >= 2 && selected_transfers[1].amount >= reserve)
-    selected_transfers.erase(selected_transfers.begin());
-  size_t sz = 0;
-  uint64_t total = 0;
-  while (total < reserve) {
-    total += selected_transfers[sz].amount;
-    ++sz;
-  }
-  selected_transfers.resize(sz);
+	for (size_t i = 0; i < selected_transfers.size(); ++i) {
 
-  std::string reserveProof = "";
-  bool r = CryptoNote::getReserveProof(selected_transfers, keys, reserve, message, reserveProof, m_logger.getLogger());
-  if (!r) {
-    throw std::runtime_error("Failed to get reserve proof");
-  }
+		// have to repeat this to get key image as we don't store m_key_image
+		// prefix_data.append((const char*)&m_transfers[selected_transfers[i]].m_key_image, sizeof(crypto::key_image));
+		const TransactionOutputInformation &td = selected_transfers[i];
 
-  return reserveProof;
+		// derive ephemeral secret key
+		Crypto::KeyImage ki;
+		const bool r = CryptoNote::generate_key_image_helper(m_account.getAccountKeys(), td.transactionPublicKey, td.outputInTransaction, ephemeral, ki);
+		if (!r) {
+			throw std::runtime_error("Failed to generate key image");
+		}
+		// now we can insert key image
+		prefix_data.append((const char*)&ki, sizeof(Crypto::PublicKey));
+		kimages.push_back(ki);
+	}
+
+	Crypto::Hash prefix_hash;
+	Crypto::cn_fast_hash(prefix_data.data(), prefix_data.size(), prefix_hash);
+
+	// generate proof entries
+	std::vector<reserve_proof_entry> proofs(selected_transfers.size());
+	
+	for (size_t i = 0; i < selected_transfers.size(); ++i) {
+		const TransactionOutputInformation &td = selected_transfers[i];
+		reserve_proof_entry& proof = proofs[i];
+		proof.key_image = kimages[i];
+		proof.transaction_id = td.transactionHash;
+		proof.index_in_transaction = td.outputInTransaction;
+
+		auto txPubKey = td.transactionPublicKey;
+
+		for (int i = 0; i < 2; ++i)	{
+			Crypto::KeyImage sk = Crypto::scalarmultKey(*reinterpret_cast<const Crypto::KeyImage*>(&txPubKey), *reinterpret_cast<const Crypto::KeyImage*>(&viewSecretKey));
+            proof.shared_secret = *reinterpret_cast<const Crypto::PublicKey *>(&sk);
+
+			Crypto::KeyDerivation derivation;
+			if (!Crypto::generate_key_derivation(proof.shared_secret, viewSecretKey, derivation)) {
+				throw std::runtime_error("Failed to generate key derivation");
+			}
+		}
+
+		// generate signature for shared secret
+		Crypto::generate_tx_proof(prefix_hash, keys.address.viewPublicKey, txPubKey, proof.shared_secret, viewSecretKey, proof.shared_secret_sig);
+
+		// derive ephemeral secret key
+		Crypto::KeyImage ki;
+		CryptoNote::KeyPair ephemeral;
+
+		const bool r = CryptoNote::generate_key_image_helper(m_account.getAccountKeys(), td.transactionPublicKey, td.outputInTransaction, ephemeral, ki);
+		if (!r) {
+			throw std::runtime_error("Failed to generate key image");
+		}
+
+		if (ephemeral.publicKey != td.outputKey) {
+			throw std::runtime_error("Derived public key doesn't agree with the stored one");
+		}
+
+		// generate signature for key image
+		const std::vector<const Crypto::PublicKey *>& pubs = { &ephemeral.publicKey };
+
+		Crypto::generate_ring_signature(prefix_hash, proof.key_image, &pubs[0], 1, ephemeral.secretKey, 0, &proof.key_image_sig);
+	}
+	// generate signature for the spend key that received those outputs
+	Crypto::Signature signature;
+	Crypto::generate_signature(prefix_hash, keys.address.spendPublicKey, keys.spendSecretKey, signature);
+
+	// serialize & encode
+	reserve_proof p;
+	p.proofs.assign(proofs.begin(), proofs.end());
+	memcpy(&p.signature, &signature, sizeof(signature));
+
+	BinaryArray ba = toBinaryArray(p);
+	std::string ret = Common::toHex(ba);
+
+	ret = "ReserveProofV1" + Tools::Base58::encode(ret);
+
+	return ret;
 }
 
 bool WalletLegacy::getTransactionInformation(const Crypto::Hash& transactionHash, TransactionInformation& info,

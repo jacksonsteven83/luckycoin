@@ -16,7 +16,6 @@
 #include "version.h"
 
 #include <Common/UrlTools.h>
-#include <Common/PathTools.h>
 #include <GreenWallet/WalletConfig.h>
 
 /* Thanks to https://stackoverflow.com/users/85381/iain for this small command
@@ -122,36 +121,6 @@ Config parseArguments(int argc, char **argv)
         }
     }
 
-    if (cmdOptionExists(argv, argv+argc, "--daemon-cert"))
-    {
-        char *certPath = getCmdOption(argv, argv + argc, "--daemon-cert");
-
-        if (!certPath)
-        {
-            std::cout << "--daemon-cert was specified, but no cert was "
-                      << "given!" << std::endl;
-
-            helpMessage();
-
-            config.exit = true;
-        }
-        else
-        {
-            config.daemonCert = certPath;
-
-            if (!Common::validateCertPath(config.daemonCert)) {
-
-                std::cout << "Custom cert file could not be found!" << std::endl;
-            }
-
-        }
-    }
-
-    if (cmdOptionExists(argv, argv+argc, "--daemon-no-verify"))
-    {
-      config.disableVerify = true;
-    }
-
     return config;
 }
 
@@ -172,11 +141,6 @@ std::vector<CLICommand> getCLICommands()
 
         {"--remote-daemon <url>", "Connect to the remote daemon at <url>", "",
          false, true},
-
-        {"--daemon-cert <path>", "Custom cert file at <path> for performing verification", "",
-         false, true},
-
-        {"--daemon-no-verify", "Disable verification procedure", "", false, false},
 
         {"--wallet-file <file>", "Open the wallet <file>", "", false, true},
 

@@ -23,21 +23,17 @@
 #include "CryptoNoteProtocolHandler.h"
 
 #include <future>
-#include <random>
 #include <boost/optional.hpp>
 #include <boost/scope_exit.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <System/Dispatcher.h>
 
-#include "Common/ShuffleGenerator.h"
 #include "CryptoNoteCore/CryptoNoteBasicImpl.h"
 #include "CryptoNoteCore/CryptoNoteFormatUtils.h"
 #include "CryptoNoteCore/CryptoNoteTools.h"
 #include "CryptoNoteCore/Currency.h"
 #include "CryptoNoteCore/VerificationContext.h"
 #include "P2p/LevinProtocol.h"
-
-#include "crypto/random.h"
 
 using namespace Logging;
 using namespace Common;
@@ -65,13 +61,9 @@ CryptoNoteProtocolHandler::CryptoNoteProtocolHandler(const Currency& currency, S
   m_p2p(p_net_layout),
   m_synchronized(false),
   m_stop(false),
-  m_init_select_dandelion_called(false),
   m_observedHeight(0),
   m_peersCount(0),
-  m_dandelionStemSelectInterval(CryptoNote::parameters::DANDELION_EPOCH),
-  m_dandelionStemFluffInterval(CryptoNote::parameters::DANDELION_STEM_EMBARGO),
-  logger(log, "protocol"),
-  m_stemPool() {
+  logger(log, "protocol") {
   
   if (!m_p2p) {
     m_p2p = &m_p2p_stub;
@@ -80,16 +72,6 @@ CryptoNoteProtocolHandler::CryptoNoteProtocolHandler(const Currency& currency, S
 
 size_t CryptoNoteProtocolHandler::getPeerCount() const {
   return m_peersCount;
-}
-
-void CryptoNoteProtocolHandler::printDandelions() const {
-  if (m_dandelion_stem.size() == 0)
-    std::cout << "No dandelion connections" << ENDL;
-  std::stringstream ss;
-  for (const auto& d : m_dandelion_stem) {
-    ss << Common::ipAddressToString(d.m_remote_ip) << ":" << d.m_remote_port << std::endl;
-  }
-  std::cout << ss.str();
 }
 
 void CryptoNoteProtocolHandler::set_p2p_endpoint(IP2pEndpoint* p2p) {
@@ -199,7 +181,7 @@ bool CryptoNoteProtocolHandler::process_payload_sync_data(const CORE_SYNC_DATA& 
     int64_t diff = static_cast<int64_t>(hshd.current_height - 1) - static_cast<int64_t>(get_current_blockchain_height());
 
     // drop and eventually ban if peer is on fork too deep behind us 
-    if (diff < 0 && std::abs(diff) > (int64_t)CryptoNote::parameters::CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW && m_core.isInCheckpointZone(hshd.current_height)) {
+    if (diff < 0 && std::abs(diff) > CryptoNote::parameters::CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW && m_core.isInCheckpointZone(hshd.current_height)) {
       logger(Logging::DEBUGGING) << context << "Sync data returned a new top block candidate: " << get_current_blockchain_height() << " -> " << hshd.current_height - 1
         << ". Your node is " << std::abs(diff) << " blocks (" << std::abs(diff) / (24 * 60 * 60 / m_currency.difficultyTarget()) << " days) "
         << "ahead. The block candidate is too deep behind and in checkpoint zone, dropping connection";
@@ -332,16 +314,15 @@ int CryptoNoteProtocolHandler::handle_notify_new_block(int command, NOTIFY_NEW_B
 
 int CryptoNoteProtocolHandler::handle_notify_new_transactions(int command, NOTIFY_NEW_TRANSACTIONS::request& arg, CryptoNoteConnectionContext& context) {
   logger(Logging::TRACE) << context << "NOTIFY_NEW_TRANSACTIONS";
+
   if (context.m_state != CryptoNoteConnectionContext::state_normal)
     return 1;
-
-  std::vector<Crypto::Hash> txHashes;
 
   if (context.m_pending_lite_block) {
     logger(Logging::TRACE) << context
       << " Pending lite block detected, handling request as missing lite block transactions response";
     std::vector<BinaryArray> _txs;
-    for (const auto& tx : arg.txs) {
+    for (const auto tx : arg.txs) {
       _txs.push_back(asBinaryArray(tx));
     }
     return doPushLiteBlock(context.m_pending_lite_block->request, context, std::move(_txs));
@@ -349,77 +330,23 @@ int CryptoNoteProtocolHandler::handle_notify_new_transactions(int command, NOTIF
     for (auto tx_blob_it = arg.txs.begin(); tx_blob_it != arg.txs.end();) {
       auto transactionBinary = asBinaryArray(*tx_blob_it);
       Crypto::Hash transactionHash = Crypto::cn_fast_hash(transactionBinary.data(), transactionBinary.size());
-      logger(DEBUGGING) << "Transaction " << transactionHash << " came in NOTIFY_NEW_TRANSACTIONS"
-                        << " as " << (arg.stem ? "stem" : "fluff");
+      logger(DEBUGGING) << "transaction " << transactionHash << " came in NOTIFY_NEW_TRANSACTIONS";
+
       CryptoNote::tx_verification_context tvc = boost::value_initialized<decltype(tvc)>();
       m_core.handle_incoming_tx(transactionBinary, tvc, false);
       if (tvc.m_verification_failed) {
-        logger(Logging::DEBUGGING) << context << "Transaction verification failed";
+        logger(Logging::DEBUGGING) << context << "Tx verification failed";
       }
       if (!tvc.m_verification_failed && tvc.m_should_be_relayed) {
-        if (!arg.stem) {
-          if (m_stemPool.hasTransaction(transactionHash)) {
-            logger(Logging::DEBUGGING) << "Removing transaction " << transactionHash << " from stempool as already broadcasted";
-            m_stemPool.removeTransaction(transactionHash);
-          }
-        }
-        else {
-          txHashes.push_back(transactionHash);
-          if (!m_stemPool.hasTransaction(transactionHash)) {
-            logger(Logging::DEBUGGING) << "Adding transaction " << transactionHash << " to stempool";
-            m_stemPool.addTransaction(transactionHash, *tx_blob_it);
-          }
-          else { // tx made roundtrip as stem, fluff it
-            logger(Logging::DEBUGGING) << "Removing transaction " << transactionHash << " from stempool and fluff";
-            m_stemPool.removeTransaction(transactionHash);
-            txHashes.erase(std::remove(txHashes.begin(), txHashes.end(), transactionHash), txHashes.end());
-            arg.stem = false;
-          }
-        }
         ++tx_blob_it;
       }
       else {
-        if (m_stemPool.hasTransaction(transactionHash)) {
-          logger(Logging::DEBUGGING) << "Removing transaction " << transactionHash << " from stempool as already broadcasted";
-          m_stemPool.removeTransaction(transactionHash);
-        }
         tx_blob_it = arg.txs.erase(tx_blob_it);
       }
     }
-  }
 
-  if (arg.txs.size()) {
-    //TODO: add announce usage here
-    if (arg.stem && !m_dandelion_stem.empty()) {
-      std::mt19937 rng = Random::generator();
-      std::uniform_int_distribution<> dis(0, 100);
-      auto coin_flip = dis(rng);
-      if (coin_flip < CryptoNote::parameters::DANDELION_STEM_TX_PROPAGATION_PROBABILITY) { // Stem propagation
-        for (const auto& dandelion_peer : m_dandelion_stem) {
-          if (dandelion_peer.m_state == CryptoNoteConnectionContext::state_normal || dandelion_peer.m_state == CryptoNoteConnectionContext::state_synchronizing) {
-            if (!post_notify<NOTIFY_NEW_TRANSACTIONS>(*m_p2p, arg, dandelion_peer)) {
-              arg.stem = false;
-              logger(Logging::DEBUGGING) << "Failed to relay transactions to Dandelion peer " << dandelion_peer.m_remote_ip << ", remove from stempool and broadcast as fluff:";
-              for (const auto& h : txHashes) {
-                m_stemPool.removeTransaction(h);
-                logger(Logging::DEBUGGING) << h;
-              }
-              relay_post_notify<NOTIFY_NEW_TRANSACTIONS>(*m_p2p, arg, &context.m_connection_id); // Fluff broadcast
-              break;
-            }
-          }
-        }
-      } else { // Switch to fluff broadcast
-        arg.stem = false;
-        logger(Logging::DEBUGGING) << "Switching to fluff broadcast of stem transactions:";
-        for (const auto& h : txHashes) {
-          m_stemPool.removeTransaction(h);
-          logger(Logging::DEBUGGING) << h;
-        }
-        relay_post_notify<NOTIFY_NEW_TRANSACTIONS>(*m_p2p, arg, &context.m_connection_id);
-      }
-    } else { // Fluff broadcast
-      arg.stem = false;
+    if (arg.txs.size()) {
+      //TODO: add announce usage here
       relay_post_notify<NOTIFY_NEW_TRANSACTIONS>(*m_p2p, arg, &context.m_connection_id);
     }
   }
@@ -431,15 +358,19 @@ int CryptoNoteProtocolHandler::handle_request_get_objects(int command, NOTIFY_RE
   logger(Logging::TRACE) << context << "Received NOTIFY_REQUEST_GET_OBJECTS";
 
   /* Essentially, one can send such a large amount of IDs that core exhausts
-   * all free memory. Credits to 'cryptozoidberg', 'moneromooo'. 
-   * Referencing HackerOne report #506595.
+   * all free memory. This issue can theoretically be exploited using very
+   * large CN blockchains, such as Monero.
+   *
+   * This is a partial fix. Thanks and credit given to CryptoNote author
+   * 'cryptozoidberg' for collaboration and the fix. Also thanks to
+   * 'moneromooo'. Referencing HackerOne report #506595.
    */
   if (arg.blocks.size() + arg.txs.size() > CURRENCY_PROTOCOL_MAX_OBJECT_REQUEST_COUNT)
   {
     logger(Logging::ERROR) << context << 
-      "Requested objects count (" << arg.blocks.size() 
-      << " blocks + " << arg.txs.size() << " txs) exceeded the limit of "
-      << CURRENCY_PROTOCOL_MAX_OBJECT_REQUEST_COUNT << ", dropping connection";
+      "Requested objects count is too big ("
+      << arg.blocks.size() << ") expected not more then "
+      << CURRENCY_PROTOCOL_MAX_OBJECT_REQUEST_COUNT;
     m_p2p->drop_connection(context, true);
     return 1;
   }
@@ -458,13 +389,6 @@ int CryptoNoteProtocolHandler::handle_request_get_objects(int command, NOTIFY_RE
 
 int CryptoNoteProtocolHandler::handle_response_get_objects(int command, NOTIFY_RESPONSE_GET_OBJECTS::request& arg, CryptoNoteConnectionContext& context) {
   logger(Logging::TRACE) << context << "NOTIFY_RESPONSE_GET_OBJECTS";
-
-  if (arg.blocks.empty())
-  {
-    logger(Logging::ERROR) << context << "sent wrong NOTIFY_HAVE_OBJECTS: no blocks, dropping connection";
-    m_p2p->drop_connection(context, true);
-    return 1;
-  }
 
   if (context.m_last_response_height > arg.current_blockchain_height) {
     logger(Logging::ERROR) << context << "sent wrong NOTIFY_HAVE_OBJECTS: arg.m_current_blockchain_height=" << arg.current_blockchain_height
@@ -591,6 +515,7 @@ int CryptoNoteProtocolHandler::handle_response_get_objects(int command, NOTIFY_R
 }
 
 int CryptoNoteProtocolHandler::processObjects(CryptoNoteConnectionContext& context, const std::vector<parsed_block_entry>& blocks) {
+
   for (const parsed_block_entry& block_entry : blocks) {
     if (m_stop) {
       break;
@@ -626,7 +551,7 @@ int CryptoNoteProtocolHandler::processObjects(CryptoNoteConnectionContext& conte
 
     if (bvc.m_verification_failed) {
       logger(Logging::DEBUGGING) << context << "Block verification failed, dropping connection";
-      m_p2p->drop_connection(context, true);
+      context.m_state = CryptoNoteConnectionContext::state_shutdown;
       return 1;
     } else if (bvc.m_marked_as_orphaned) {
       logger(Logging::INFO) << context << "Block received at sync phase was marked as orphaned, dropping connection";
@@ -644,82 +569,12 @@ int CryptoNoteProtocolHandler::processObjects(CryptoNoteConnectionContext& conte
   }
 
   return 0;
+
 }
 
-bool CryptoNoteProtocolHandler::select_dandelion_stem() {
-  m_init_select_dandelion_called = true;
-
-  m_dandelion_stem.clear();
-
-  std::vector<CryptoNoteConnectionContext> alive_peers;
-  m_p2p->for_each_connection([&](const CryptoNoteConnectionContext& ctx, PeerIdType peer_id) {
-    if ((ctx.m_state == CryptoNoteConnectionContext::state_normal || 
-         ctx.m_state == CryptoNoteConnectionContext::state_synchronizing) && 
-        !ctx.m_is_income && ctx.version >= P2P_VERSION_4) {
-      alive_peers.push_back(ctx);
-    }
-  });
-
-  if (alive_peers.size() > 0) {
-    ShuffleGenerator<size_t> peersGenerator(alive_peers.size());
-    while (m_dandelion_stem.size() < std::min<size_t>(CryptoNote::parameters::DANDELION_STEMS, alive_peers.size()) && !peersGenerator.empty()) {
-      auto& it = alive_peers[peersGenerator()];
-      m_dandelion_stem.push_back(it);
-    }
-
-    logger(Logging::DEBUGGING) << "Selected dandelion_stem peers:";
-    for (const auto& dp : m_dandelion_stem) {
-      logger(Logging::DEBUGGING) << Common::ipAddressToString(dp.m_remote_ip) + ":" + std::to_string(dp.m_remote_port);
-    }
-    logger(Logging::DEBUGGING) << "out of:";
-    for (const auto& ap : alive_peers) {
-      logger(Logging::DEBUGGING) << Common::ipAddressToString(ap.m_remote_ip) + ":" + std::to_string(ap.m_remote_port);
-    }
-
-    return true;
-  }
-
-  logger(Logging::WARNING) << "No alive peers for dandelion stem...";
-
-  return false;
-}
-
-// Fail-safe to ensure stem txs are broadcasted
-bool CryptoNoteProtocolHandler::fluffStemPool() {
-  if (!m_stemPool.hasTransactions()) {
-    NOTIFY_NEW_TRANSACTIONS::request notification;
-    notification.stem = false;
-    logger(Logging::DEBUGGING) << "Broadcasting as fluff " << m_stemPool.getTransactionsCount() << " timeout stem transaction(s):";
-    std::vector<std::pair<Crypto::Hash, std::string>> stemTxs = m_stemPool.getTransactions();
-    for (const auto & s : stemTxs) {
-        notification.txs.push_back(s.second);
-      logger(Logging::DEBUGGING) << s.first;
-    }
-    auto buf = LevinProtocol::encode(notification);
-    m_p2p->externalRelayNotifyToAll(NOTIFY_NEW_TRANSACTIONS::ID, buf, nullptr);
-
-    m_stemPool.clearStemPool();
-  }
-  else {
-    logger(Logging::DEBUGGING) << "Nothing to broadcast in fluff mode...";
-  }
-  
-  return true;
-}
 
 bool CryptoNoteProtocolHandler::on_idle() {
-  try {
-    m_core.on_idle();
-    // We don't have peers yet to select dandelion stems
-    if (m_init_select_dandelion_called) {
-      m_dandelionStemSelectInterval.call(std::bind(&CryptoNoteProtocolHandler::select_dandelion_stem, this));
-    }
-    m_dandelionStemFluffInterval.call(std::bind(&CryptoNoteProtocolHandler::fluffStemPool, this));
-  } catch (std::exception& e) {
-    logger(DEBUGGING) << "exception in on_idle: " << e.what();
-  }
-
-  return true;
+  return m_core.on_idle();
 }
 
 int CryptoNoteProtocolHandler::doPushLiteBlock(NOTIFY_NEW_LITE_BLOCK::request arg, CryptoNoteConnectionContext &context,
@@ -917,7 +772,7 @@ bool CryptoNoteProtocolHandler::on_connection_synchronized() {
     std::cout << ENDL << "**********************************************************************" << ENDL
       << "You are now synchronized with the network. You may now start simplewallet." << ENDL
       << ENDL
-      << "Please note, that the blockchain will be saved only after you quit the daemon with \"exit\" command or if you use \"save\" command. "
+      << "Please note, that the blockchain will be saved only after you quit the daemon with \"exit\" command or if you use \"save\" command." << ENDL
       << "Otherwise, you will possibly need to synchronize the blockchain again." << ENDL
       << ENDL
       << "Use \"help\" command to see the list of available commands." << ENDL
@@ -968,11 +823,7 @@ int CryptoNoteProtocolHandler::handle_response_chain_entry(int command, NOTIFY_R
       context.m_needed_objects.push_back(bl_id);
   }
 
-  if (!request_missing_objects(context, false)) {
-    logger(Logging::DEBUGGING) << context << "Failed to request missing objects, dropping connection";
-    m_p2p->drop_connection(context, true);
-  }
-
+  request_missing_objects(context, false);
   return 1;
 }
 
@@ -986,7 +837,6 @@ int CryptoNoteProtocolHandler::handle_request_tx_pool(int command, NOTIFY_REQUES
 
   if (!addedTransactions.empty()) {
     NOTIFY_NEW_TRANSACTIONS::request notification;
-    notification.stem = false;
     for (auto& tx : addedTransactions) {
       notification.txs.push_back(asString(toBinaryArray(tx)));
     }
@@ -1085,57 +935,8 @@ void CryptoNoteProtocolHandler::relay_block(NOTIFY_NEW_BLOCK::request& arg) {
 }
 
 void CryptoNoteProtocolHandler::relay_transactions(NOTIFY_NEW_TRANSACTIONS::request& arg) {
-  if (arg.stem && !m_dandelion_stem.empty()) { // Dandelion broadcast
-    std::vector<Crypto::Hash> txHashes;
-    for (auto tx_blob_it = arg.txs.begin(); tx_blob_it != arg.txs.end(); tx_blob_it++) {
-      auto transactionBinary = asBinaryArray(*tx_blob_it);
-      Crypto::Hash transactionHash = Crypto::cn_fast_hash(transactionBinary.data(), transactionBinary.size());
-      if (!m_stemPool.hasTransaction(transactionHash)) {
-        logger(Logging::DEBUGGING) << "Adding relayed transaction " << transactionHash << " to stempool";
-        auto txblob = *tx_blob_it;
-        //m_dispatcher.remoteSpawn([this, transactionHash, txblob] {
-          m_stemPool.addTransaction(transactionHash, txblob);
-        //});
-        txHashes.push_back(transactionHash);
-      }
-    }
-
-    std::mt19937 rng = Random::generator();
-    std::uniform_int_distribution<> dis(0, 100);
-    auto coin_flip = dis(rng);
-    if (coin_flip < CryptoNote::parameters::DANDELION_STEM_TX_PROPAGATION_PROBABILITY) { // Stem propagation
-      for (const auto& dandelion_peer : m_dandelion_stem) {
-        if (dandelion_peer.m_state == CryptoNoteConnectionContext::state_normal || dandelion_peer.m_state == CryptoNoteConnectionContext::state_synchronizing) {
-          if (!post_notify<NOTIFY_NEW_TRANSACTIONS>(*m_p2p, arg, dandelion_peer)) {
-            logger(Logging::WARNING, Logging::BRIGHT_YELLOW) << "Failed to relay transactions to Dandelion peer " << dandelion_peer.m_remote_ip << ", broadcasting in dandelion fluff mode";
-            arg.stem = false;
-            for (const auto& h : txHashes) {
-              m_stemPool.removeTransaction(h);
-              logger(Logging::DEBUGGING) << h;
-            }
-
-            auto buf = LevinProtocol::encode(arg);
-            m_p2p->externalRelayNotifyToAll(NOTIFY_NEW_TRANSACTIONS::ID, buf, nullptr);
-            break;
-          }
-        }
-      }
-    } else { // Switch to fluff broadcast
-      arg.stem = false;
-      logger(Logging::DEBUGGING) << "Switching to fluff broadcast of stem transactions:";
-      for (const auto& h : txHashes) {
-        m_stemPool.removeTransaction(h);
-        logger(Logging::DEBUGGING) << h;
-      }
-      auto buf = LevinProtocol::encode(arg);
-      m_p2p->externalRelayNotifyToAll(NOTIFY_NEW_TRANSACTIONS::ID, buf, nullptr);
-    }
-  } else { // Fluff broadcast
-    logger(Logging::DEBUGGING) << "Not stem or no stem peers, fluff broadcast of transactions...";
-    arg.stem = false;
-    auto buf = LevinProtocol::encode(arg);
-    m_p2p->externalRelayNotifyToAll(NOTIFY_NEW_TRANSACTIONS::ID, buf, nullptr);
-  }
+  auto buf = LevinProtocol::encode(arg);
+  m_p2p->externalRelayNotifyToAll(NOTIFY_NEW_TRANSACTIONS::ID, buf, nullptr);
 }
 
 void CryptoNoteProtocolHandler::requestMissingPoolTransactions(const CryptoNoteConnectionContext& context) {

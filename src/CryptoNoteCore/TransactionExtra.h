@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <vector>
 #include <boost/variant.hpp>
 

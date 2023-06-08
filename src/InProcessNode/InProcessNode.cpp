@@ -354,7 +354,6 @@ std::error_code InProcessNode::doRelayTransaction(const CryptoNote::Transaction&
 
     CryptoNote::NOTIFY_NEW_TRANSACTIONS::request r;
     r.txs.push_back(asString(transactionBinaryArray));
-    r.stem = true;
     core.get_protocol()->relay_transactions(r);
   } catch (std::system_error& e) {
     return e.code();
@@ -432,6 +431,15 @@ uint64_t InProcessNode::getLastLocalBlockTimestamp() const {
 uint64_t InProcessNode::getMinimalFee() const {
   std::unique_lock<std::mutex> lock(mutex);
   return core.getMinimalFee();
+}
+
+void InProcessNode::getFeeAddress() {
+  // Do nothing
+  return;
+}
+
+std::string InProcessNode::feeAddress() const { 
+  return std::string();
 }
 
 uint64_t InProcessNode::getNextDifficulty() const {
@@ -828,7 +836,7 @@ std::error_code InProcessNode::doGetBlocks(const std::vector<uint32_t>& blockHei
         return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
       }
       BlockDetails blockDetails;
-      if (!blockchainExplorerDataBuilder.fillBlockDetails(block, blockDetails, false)) {
+      if (!blockchainExplorerDataBuilder.fillBlockDetails(block, blockDetails)) {
         return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
       }
       std::vector<BlockDetails> blocksOnSameHeight;
@@ -839,7 +847,7 @@ std::error_code InProcessNode::doGetBlocks(const std::vector<uint32_t>& blockHei
       core.getOrphanBlocksByHeight(height, orphanBlocks);
       for (const Block& orphanBlock : orphanBlocks) {
         BlockDetails orphanBlockDetails;
-        if (!blockchainExplorerDataBuilder.fillBlockDetails(orphanBlock, orphanBlockDetails, false)) {
+        if (!blockchainExplorerDataBuilder.fillBlockDetails(orphanBlock, orphanBlockDetails)) {
           return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
         }
         blocksOnSameHeight.push_back(std::move(orphanBlockDetails));
@@ -905,7 +913,7 @@ std::error_code InProcessNode::doGetBlocks(const std::vector<Crypto::Hash>& bloc
         return make_error_code(CryptoNote::error::REQUEST_ERROR);
       }
       BlockDetails blockDetails;
-      if (!blockchainExplorerDataBuilder.fillBlockDetails(block, blockDetails, false)) {
+      if (!blockchainExplorerDataBuilder.fillBlockDetails(block, blockDetails)) {
         return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
       }
       blocks.push_back(std::move(blockDetails));
@@ -981,7 +989,7 @@ std::error_code InProcessNode::doGetBlocks(uint64_t timestampBegin, uint64_t tim
     }
     for (const Block& rawBlock : rawBlocks) {
       BlockDetails block;
-      if (!blockchainExplorerDataBuilder.fillBlockDetails(rawBlock, block, false)) {
+      if (!blockchainExplorerDataBuilder.fillBlockDetails(rawBlock, block)) {
         return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
       }
       blocks.push_back(std::move(block));
@@ -989,69 +997,6 @@ std::error_code InProcessNode::doGetBlocks(uint64_t timestampBegin, uint64_t tim
   } catch (std::system_error& e) {
     return e.code();
   } catch (std::exception&) {
-    return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
-  }
-  return std::error_code();
-}
-
-void InProcessNode::getTransaction(const Crypto::Hash& transactionHash, CryptoNote::Transaction& transaction, const Callback& callback) {
-  std::unique_lock<std::mutex> lock(mutex);
-  if (state != INITIALIZED) {
-    lock.unlock();
-    callback(make_error_code(CryptoNote::error::NOT_INITIALIZED));
-    return;
-  }
-
-  ioService.post(
-    std::bind(
-      static_cast<
-      void(InProcessNode::*)(
-        const Crypto::Hash&,
-        CryptoNote::Transaction&,
-        const Callback&
-        )
-      >(&InProcessNode::getTransactionAsync),
-      this,
-      std::cref(transactionHash),
-      std::ref(transaction),
-      callback
-    )
-  );
-}
-
-void InProcessNode::getTransactionAsync(const Crypto::Hash& transactionHash, CryptoNote::Transaction& transaction, const Callback& callback) {
-  std::error_code ec = core.executeLocked(
-    std::bind(
-      static_cast<
-      std::error_code(InProcessNode::*)(
-        const Crypto::Hash&,
-        CryptoNote::Transaction&
-        )
-      >(&InProcessNode::doGetTransaction),
-      this,
-      std::cref(transactionHash),
-      std::ref(transaction)
-    )
-  );
-  callback(ec);
-}
-
-std::error_code InProcessNode::doGetTransaction(const Crypto::Hash& transactionHash, CryptoNote::Transaction& transaction) {
-  try {
-    std::list<Transaction> txs;
-    std::list<Crypto::Hash> missed_txs;
-    std::vector<Crypto::Hash> transactionHashes;
-    transactionHashes.push_back(transactionHash);
-    core.getTransactions(transactionHashes, txs, missed_txs, true);
-    if (missed_txs.size() > 0) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
-    }
-    transaction = std::move(txs.front());
-  }
-  catch (std::system_error& e) {
-    return e.code();
-  }
-  catch (std::exception&) {
     return make_error_code(CryptoNote::error::INTERNAL_NODE_ERROR);
   }
   return std::error_code();
@@ -1250,14 +1195,6 @@ void InProcessNode::isSynchronized(bool& syncStatus, const Callback& callback) {
       callback
     )
   );
-}
-
-void InProcessNode::setRootCert(const std::string &path) {
-  return;
-}
-
-void InProcessNode::disableVerify() {
-  return;
 }
 
 void InProcessNode::isSynchronizedAsync(bool& syncStatus, const Callback& callback) {
