@@ -50,7 +50,7 @@ LKCD_FEE_ADDRESS="Ke5tURH8PotZfvk3B444EtEu29PwtjTND4SBmw1NL7gd9gZ6y78F9cz4ZKepay
 LKCD_FEE_AMOUNT="0.1"
 LKCD_VIEW_KEY=""
 
-KRBS_CONTROL="/usr/lib/luckycoin/krbs.sh"
+LKCS_CONTROL="/usr/lib/luckycoin/lkcs.sh"
 
 SIGTERM_TIMEOUT=240
 SIGKILL_TIMEOUT=120
@@ -122,8 +122,8 @@ if [ ! -f $ZIP ]; then
   exit 1
 fi
 
-if [ ! -f $KRBS_CONTROL ]; then
-  echo "Error: KRBS start script file not found!"
+if [ ! -f $LKCS_CONTROL ]; then
+  echo "Error: LKCS start script file not found!"
   exit 1
 fi
 
@@ -310,10 +310,10 @@ checker(){
 }
 
 # Fucntion check simplewallet is was started
-IS_KRBS="stop"
+IS_LKCS="stop"
 is_run_simplewallet(){
-  if [ -f $RUN_DIR/KRBS.pid ]; then
-    IS_KRBS="run"
+  if [ -f $RUN_DIR/LKCS.pid ]; then
+    IS_LKCS="run"
   fi
 }
 
@@ -327,9 +327,9 @@ do_start(){
 do_stop(){
   is_run_simplewallet
   logger "DO STOP: procedure initializing..."
-  if [ "$IS_KRBS" = "run" ]; then
+  if [ "$IS_LKCS" = "run" ]; then
     logger "DO STOP: stopping dependant service..."
-    $KRBS_CONTROL --stop > /dev/null
+    $LKCS_CONTROL --stop > /dev/null
   fi
   service_stop
   logger "DO STOP: ok"
@@ -338,17 +338,17 @@ do_stop(){
 do_restart(){
   is_run_simplewallet
   logger "DO RESTART: procedure initializing..."
-  if [ "$IS_KRBS" = "run" ]; then
+  if [ "$IS_LKCS" = "run" ]; then
     logger "DO RESTART: Simplewallet was started and will be stopped. Stopping Simplewallet service..."
-    $KRBS_CONTROL --stop > /dev/null
+    $LKCS_CONTROL --stop > /dev/null
   fi
   service_stop
   service_start
-  if [ "$IS_KRBS" = "run" ]; then
+  if [ "$IS_LKCS" = "run" ]; then
     logger "DO RESTART: Simplewallet will be started again. Waiting for the node to be ready..."
     service_is_ready
     logger "DO RESTART: starting Simplewallet service..."
-    $KRBS_CONTROL --start > /dev/null
+    $LKCS_CONTROL --start > /dev/null
   fi
   logger "DO RESTART: ok"
 }
