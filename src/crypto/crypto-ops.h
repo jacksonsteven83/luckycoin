@@ -1,5 +1,5 @@
 // Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
-// Copyright (c) 2023, The luckycoin developers
+// Copyright (c) 2016-2020, The luckycoin developers
 //
 // This file is part of luckycoin.
 //

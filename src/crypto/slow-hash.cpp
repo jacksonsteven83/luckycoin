@@ -1,5 +1,4 @@
 // Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
-// Copyright (c) 2016-2021, The luckycoin Developers
 //
 // This file is part of luckycoin.
 //
@@ -17,7 +16,6 @@
 // along with luckycoin.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <assert.h>
-#include <exception>
 #include <new>
 
 #include "hash.h"
