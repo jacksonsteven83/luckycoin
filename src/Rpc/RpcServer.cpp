@@ -1055,7 +1055,7 @@ bool RpcServer::on_alt_blocks_list_json(const COMMAND_RPC_GET_ALT_BLOCKS_LIST::r
   return true;
 }
 
-bool RpcServer::on_get_transactions_pool_short(const COMMAND_RPC_GET_TRANSACTIONS_POOL_SHORT::request& req, COMMAND_RPC_GET_TRANSACTIONS_POOL_SHORT::response& res) {
+bool RpcServer::on_get_transactions_pool(const COMMAND_RPC_GET_TRANSACTIONS_POOL::request& req, COMMAND_RPC_GET_TRANSACTIONS_POOL::response& res) {
   auto pool = m_core.getMemoryPool();
   for (const CryptoNote::tx_memory_pool::TransactionDetails txd : pool) {
     transaction_pool_response mempool_transaction;
