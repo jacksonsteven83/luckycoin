@@ -2137,15 +2137,14 @@ bool Blockchain::pushBlock(const Block& blockData, const std::vector<Transaction
       bvc.m_verification_failed = true;
       return false;
     }
-  }
-  /*else {
+  } else {
     if (!m_currency.checkProofOfWork(m_cn_context, blockData, currentDifficulty, proof_of_work)) {
       logger(INFO, BRIGHT_WHITE) <<
         "Block " << blockHash << ", has too weak proof of work: " << proof_of_work << ", expected difficulty: " << currentDifficulty;
       bvc.m_verification_failed = true;
       return false;
     }
-  } */
+  }
 
   auto longhash_calculating_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - longhashTimeStart).count();
 
