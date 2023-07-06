@@ -2128,7 +2128,7 @@ bool Blockchain::pushBlock(const Block& blockData, const std::vector<Transaction
     return false;
   }
 
-  auto longhashTimeStart = std::chrono::steady_clock::now();
+  /* auto longhashTimeStart = std::chrono::steady_clock::now();
   Crypto::Hash proof_of_work = NULL_HASH;
   if (m_checkpoints.is_in_checkpoint_zone(getCurrentBlockchainHeight())) {
     if (!m_checkpoints.check_block(getCurrentBlockchainHeight(), blockHash)) {
@@ -2144,7 +2144,7 @@ bool Blockchain::pushBlock(const Block& blockData, const std::vector<Transaction
       bvc.m_verification_failed = true;
       return false;
     }
-  }
+  } */
 
   auto longhash_calculating_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - longhashTimeStart).count();
 
