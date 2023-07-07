@@ -563,7 +563,7 @@ namespace CryptoNote {
 		// Copyright (c) 2017-2018 Zawy
 		// MIT license http://www.opensource.org/licenses/mit-license.php.
 		// This is an improved version of Tom Harding's (Deger8) "WT-144"  
-		// Karbowanec, Masari, Bitcoin Gold, and Bitcoin Cash have contributed.
+		// luckycoin, Masari, Bitcoin Gold, and Bitcoin Cash have contributed.
 		// See https://github.com/zawy12/difficulty-algorithms/issues/1 for other algos.
 		// Do not use "if solvetime < 0 then solvetime = 1" which allows a catastrophic exploit.
 		// T= target_solvetime;

@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers, The Karbovanets developers
+// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers, The luckycoin developers
 // Copyright (c) 2014-2016, XDN developers
 // Copyright (c) 2014-2017, The Monero Project
 // Copyright (c) 2014-2017, The Forknote developers

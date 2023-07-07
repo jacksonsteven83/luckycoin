@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 {
 	/* Fix wallet not responding when enter cyrillic (non-latin) characters 
 	   by setting operating system default locale.
-	   Set cyrillic locale on Windows explicitly - this is Karbovanets after all. */
+	   Set cyrillic locale on Windows explicitly - this is luckycoin after all. */
 	setlocale(LC_CTYPE, "");
 #ifdef WIN32
 	SetConsoleCP(1251);
